@@ -578,7 +578,17 @@ function NotificationsSection({ userId }: { userId: string }) {
 }
 
 // ── Care team section ─────────────────────────────────────────────────────────
-function CareTeamSection({ parentId, childId }: { parentId: string; childId: string }) {
+function CareTeamSection({
+  parentId,
+  childId,
+  childName,
+  parentEmail,
+}: {
+  parentId: string;
+  childId: string;
+  childName: string;
+  parentEmail: string;
+}) {
   const qc = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'view_only' | 'approver'>('view_only');
@@ -592,6 +602,7 @@ function CareTeamSection({ parentId, childId }: { parentId: string; childId: str
 
   const inviteMutation = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: 'view_only' | 'approver' }) => {
+      // 1. Create the DB row
       const { error } = await supabase.from('care_team_members').insert({
         parent_id: parentId,
         child_id: childId,
@@ -599,6 +610,22 @@ function CareTeamSection({ parentId, childId }: { parentId: string; childId: str
         role,
       });
       if (error) throw error;
+
+      // 2. Send the branded invitation email via Resend (fire-and-forget —
+      //    DB row still persists if the email send fails, so the parent can
+      //    re-trigger by revoking + re-inviting if needed)
+      try {
+        await supabase.functions.invoke('send-care-invite', {
+          body: {
+            invitee_email: email,
+            parent_name: parentEmail,
+            child_name: childName,
+            role,
+          },
+        });
+      } catch (emailErr) {
+        console.warn('[care-team] invite email send failed:', emailErr);
+      }
     },
     onSuccess: () => {
       setInviteEmail('');
@@ -872,7 +899,12 @@ export default function SettingsScreen() {
                 <Text className="font-inter text-neutral-500 text-xs mb-3 px-1">
                   Invite teachers or therapists to view progress or approve activities.
                 </Text>
-                <CareTeamSection parentId={userId} childId={activeChild.profile_id} />
+                <CareTeamSection
+                  parentId={userId}
+                  childId={activeChild.profile_id}
+                  childName={activeChild.child_name}
+                  parentEmail={session?.user.email ?? 'A RoutineStars parent'}
+                />
               </>
             ) : (
               <View className="bg-white rounded-2xl p-4 mb-2 shadow-sm items-center">
