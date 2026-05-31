@@ -47,9 +47,9 @@ RoutineStars helps children aged 4–14 — especially those with autism or spec
 
 **Plans:**
 • Free: 1 child, 5 activity sets
-• Starter (£7.99/mo): up to 3 children, all 15 sets, PDF reports
-• Family (£14.99/mo): unlimited children, custom sets, care team sharing
-• School (£49/mo): up to 30 children, teacher portal, bulk import
+• Starter (£5.99/mo): up to 3 children, all 15 sets, PDF reports
+• Family (£9.99/mo): unlimited children, custom sets, care team sharing
+• Enterprise (£99.99/mo): up to 30 children, teacher portal, bulk import
 
 ---
 

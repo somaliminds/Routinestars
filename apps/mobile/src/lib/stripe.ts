@@ -1,20 +1,25 @@
 /**
  * Stripe billing setup.
- * Sprint 4.1: Subscription management (Free / Starter / Family / School).
+ * Sprint 4.1: Subscription management (Free / Starter / Family / Enterprise).
  * Uses Stripe React Native SDK + server-side payment intent creation.
+ *
+ * NOTE: The plan key is still `SCHOOL` for backwards compatibility with the
+ * database `plan` column and webhook mapping. The user-facing name is "Enterprise".
  */
 export const STRIPE_PLANS = {
   FREE: {
     name: 'Free',
     price: 0,
+    priceDisplay: 'Free',
+    stripePriceId: undefined as string | undefined,
     maxChildren: 1,
     maxSets: 5,
     features: ['1 child profile', '5 built-in sets', 'Basic reports'],
   },
   STARTER: {
     name: 'Starter',
-    price: 799, // pence
-    priceDisplay: '£7.99/mo',
+    price: 599, // pence
+    priceDisplay: '£5.99/mo',
     stripePriceId: process.env.EXPO_PUBLIC_STRIPE_PRICE_ID_STARTER,
     maxChildren: 3,
     maxSets: -1, // unlimited
@@ -22,17 +27,17 @@ export const STRIPE_PLANS = {
   },
   FAMILY: {
     name: 'Family',
-    price: 1499,
-    priceDisplay: '£14.99/mo',
+    price: 999,
+    priceDisplay: '£9.99/mo',
     stripePriceId: process.env.EXPO_PUBLIC_STRIPE_PRICE_ID_FAMILY,
     maxChildren: -1,
     maxSets: -1,
     features: ['Unlimited children', 'All sets + custom', 'Reports + care team sharing'],
   },
   SCHOOL: {
-    name: 'School',
-    price: 4900,
-    priceDisplay: '£49/mo',
+    name: 'Enterprise',
+    price: 9999,
+    priceDisplay: '£99.99/mo',
     stripePriceId: process.env.EXPO_PUBLIC_STRIPE_PRICE_ID_SCHOOL,
     maxChildren: 30,
     maxSets: -1,

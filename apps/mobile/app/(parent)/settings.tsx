@@ -881,7 +881,7 @@ export default function SettingsScreen() {
                   Care team sharing requires the Family plan
                 </Text>
                 <Text className="font-inter text-neutral-500 text-xs text-center mt-1">
-                  Upgrade to Family (£14.99/mo) to invite teachers and therapists.
+                  Upgrade to Family (£9.99/mo) to invite teachers and therapists.
                 </Text>
               </View>
             )}
