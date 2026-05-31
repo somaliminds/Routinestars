@@ -26,8 +26,15 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "data": [{ "scheme": "routinestars" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "routinestars"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -39,7 +46,10 @@
         "NSCameraUsageDescription": "Used to upload custom activity illustrations.",
         "NSPhotoLibraryUsageDescription": "Used to select photos for custom activity illustrations.",
         "NSMicrophoneUsageDescription": "Not used by this app.",
-        "UIBackgroundModes": ["fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "plugins": [
@@ -60,7 +70,8 @@
         }
       ],
       "expo-font",
-      "expo-sqlite"
+      "expo-sqlite",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true

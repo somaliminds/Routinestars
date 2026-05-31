@@ -17,6 +17,10 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useVoiceStore } from '@/stores/voice.store';
 import { useSyncPending } from '@/hooks/useSyncPending';
 import { supabase } from '@/lib/supabase';
+import { initSentry, setSentryUser, Sentry } from '@/lib/sentry';
+
+// Initialise Sentry as early as possible — before any user code runs.
+initSentry();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -87,7 +91,7 @@ function AuthGuard() {
   return null;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const hydrateVoice = useVoiceStore((s) => s.hydrate);
   const session = useAuthStore((s) => s.session);
@@ -96,6 +100,11 @@ export default function RootLayout() {
   useEffect(() => {
     void hydrateVoice();
   }, [hydrateVoice]);
+
+  // Tag Sentry events with the current user (so we know WHO hit each crash)
+  useEffect(() => {
+    setSentryUser(session?.user.id ?? null, session?.user.email);
+  }, [session?.user.id, session?.user.email]);
 
   const [fontsLoaded, fontError] = useFonts({
     Nunito_400Regular,
@@ -140,3 +149,8 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap() catches uncaught React render errors and reports them
+// to Sentry automatically. Default export must be the wrapped component
+// for Expo Router to mount it as the root.
+export default Sentry.wrap(RootLayout);

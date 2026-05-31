@@ -939,6 +939,22 @@ export default function SettingsScreen() {
         >
           <Text className="font-inter font-semibold text-accent-danger text-sm">Sign Out</Text>
         </TouchableOpacity>
+
+        {/* Sentry test — dev only. Strip from production by checking __DEV__. */}
+        {__DEV__ && (
+          <TouchableOpacity
+            onPress={() => {
+              throw new Error('Sentry test crash from Settings — ' + new Date().toISOString());
+            }}
+            className="mt-3 bg-white rounded-2xl py-3 items-center border border-neutral-200"
+            accessibilityLabel="Trigger test crash (dev only)"
+            accessibilityRole="button"
+          >
+            <Text className="font-inter text-neutral-400 text-xs">
+              [dev] Trigger test crash
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Child modal */}
