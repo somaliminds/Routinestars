@@ -1,0 +1,20 @@
+# Supabase project config — Edge Functions per-function settings.
+# verify_jwt = false means the function is publicly callable (anonymous OK).
+# It still uses the SERVICE_ROLE_KEY internally for DB writes.
+
+project_id = "ujzsteariqmqizzraccw"
+
+[functions.request-pin-reset]
+verify_jwt = false
+
+[functions.hash-pin]
+verify_jwt = false
+
+[functions.verify-pin]
+verify_jwt = false
+
+[functions.reset-pin]
+verify_jwt = false
+
+[functions.reset-redirect]
+verify_jwt = false

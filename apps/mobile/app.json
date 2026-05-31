@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "RoutineStars",
+    "slug": "routinestars",
+    "version": "1.0.0",
+    "scheme": "routinestars",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#7C3AED"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "backgroundColor": "#7C3AED"
+      },
+      "package": "com.routinestars.app",
+      "googleServicesFile": "./google-services.json",
+      "predictiveBackGestureEnabled": false,
+      "newArchEnabled": true,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [{ "scheme": "routinestars" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.routinestars.app",
+      "newArchEnabled": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to upload custom activity illustrations.",
+        "NSPhotoLibraryUsageDescription": "Used to select photos for custom activity illustrations.",
+        "NSMicrophoneUsageDescription": "Not used by this app.",
+        "UIBackgroundModes": ["fetch", "remote-notification"]
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "./plugins/withSingleTask",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#7C3AED"
+        }
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.routinestars.app",
+          "enableGooglePay": false
+        }
+      ],
+      "expo-font",
+      "expo-sqlite"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "87310d6c-0fb0-4458-9bb0-426da10020f6"
+      }
+    }
+  }
+}

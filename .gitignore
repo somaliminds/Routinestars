@@ -1,0 +1,51 @@
+# Environment — NEVER commit these
+.env
+.env.local
+.env.*.local
+
+# Firebase / Google service credentials — NEVER commit
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Expo
+**/.expo/
+**/dist/
+**/web-build/
+**/expo-env.d.ts
+
+# Native builds
+**/ios/
+**/android/
+**/.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+**/.metro-health-check*
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Sentry
+.sentryclirc
