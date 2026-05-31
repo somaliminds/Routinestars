@@ -10,18 +10,23 @@
  *  - customer.subscription.deleted
  *  - invoice.payment_failed
  */
-import Stripe from 'https://esm.sh/stripe@14?target=deno';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Stripe from 'npm:stripe@17';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.99.0';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+if (!stripeKey) {
+  console.error('FATAL: STRIPE_SECRET_KEY is not set in Edge Function secrets');
+}
+const stripe = new Stripe(stripeKey ?? 'sk_test_placeholder', {
   apiVersion: '2024-06-20',
-  httpClient: Stripe.createFetchHttpClient(),
 });
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
 );
+
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 // Map Stripe price IDs → plan keys
 function priceIdToPlan(priceId: string | null | undefined): string {
@@ -42,7 +47,8 @@ async function upsertSubscription(params: {
   currentPeriodEnd: number | null;
   cancelAtPeriodEnd: boolean;
 }) {
-  await supabase.from('subscriptions').upsert(
+  console.log('[stripe-webhook] upserting subscription:', JSON.stringify(params));
+  const { error } = await supabase.from('subscriptions').upsert(
     {
       user_id: params.userId,
       stripe_customer_id: params.stripeCustomerId,
@@ -57,6 +63,11 @@ async function upsertSubscription(params: {
     },
     { onConflict: 'user_id' },
   );
+  if (error) {
+    console.error('[stripe-webhook] upsert failed:', error.message, error.details);
+    throw error;
+  }
+  console.log('[stripe-webhook] upsert OK');
 }
 
 Deno.serve(async (req) => {
@@ -64,7 +75,11 @@ Deno.serve(async (req) => {
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 
   if (!signature || !webhookSecret) {
-    return new Response(JSON.stringify({ error: 'Missing signature' }), { status: 400 });
+    console.error('[stripe-webhook] missing signature or secret');
+    return new Response(JSON.stringify({ error: 'Missing signature' }), {
+      status: 400,
+      headers: JSON_HEADERS,
+    });
   }
 
   const body = await req.text();
@@ -72,21 +87,32 @@ Deno.serve(async (req) => {
   let event: Stripe.Event;
   try {
     event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid signature' }), { status: 400 });
+  } catch (sigErr) {
+    console.error('[stripe-webhook] signature verification failed:', sigErr);
+    return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+      status: 400,
+      headers: JSON_HEADERS,
+    });
   }
+
+  console.log('[stripe-webhook] received event:', event.type, 'id:', event.id);
 
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
+        console.log('[stripe-webhook] checkout session:', session.id, 'mode:', session.mode);
         if (session.mode !== 'subscription') break;
 
         const userId = session.metadata?.user_id;
-        if (!userId) break;
+        if (!userId) {
+          console.error('[stripe-webhook] no user_id in metadata');
+          break;
+        }
 
         const sub = await stripe.subscriptions.retrieve(session.subscription as string);
         const priceId = sub.items.data[0]?.price.id;
+        console.log('[stripe-webhook] mapping priceId:', priceId, '→', priceIdToPlan(priceId));
 
         await upsertSubscription({
           userId,
@@ -144,9 +170,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ received: true }), { status: 200 });
+    return new Response(JSON.stringify({ received: true }), {
+      status: 200,
+      headers: JSON_HEADERS,
+    });
   } catch (err) {
-    console.error('Webhook handler error:', err);
-    return new Response(JSON.stringify({ error: 'Handler failed' }), { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error('[stripe-webhook] handler error:', msg);
+    if (stack) console.error(stack);
+    return new Response(JSON.stringify({ error: 'Handler failed', detail: msg }), {
+      status: 500,
+      headers: JSON_HEADERS,
+    });
   }
 });

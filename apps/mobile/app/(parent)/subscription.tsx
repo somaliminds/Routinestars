@@ -148,8 +148,9 @@ export default function SubscriptionScreen() {
         body: {
           userId,
           priceId: plan.stripePriceId,
-          successUrl: 'routinestars://subscription/success',
-          cancelUrl: 'routinestars://subscription/cancel',
+          // Let the server use its HTTPS → deep-link bridge defaults.
+          // Custom schemes passed directly here are unreliable as Stripe
+          // success/cancel URLs.
         },
       });
 

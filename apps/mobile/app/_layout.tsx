@@ -133,6 +133,8 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(child)" />
           <Stack.Screen name="(parent)" />
+          <Stack.Screen name="subscription/success" />
+          <Stack.Screen name="subscription/cancel" />
         </Stack>
       </QueryClientProvider>
     </GestureHandlerRootView>

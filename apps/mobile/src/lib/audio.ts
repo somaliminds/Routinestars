@@ -96,18 +96,13 @@ export async function stopStepAudio(): Promise<void> {
   }
 }
 
-/** List all device voices in the target language, sorted by quality heuristic. */
+/** List en-GB voices only, sorted alphabetically by name. */
 export async function listEnglishVoices(): Promise<Speech.Voice[]> {
   try {
     const voices = await Speech.getAvailableVoicesAsync();
-    const enVoices = voices.filter((v) => v.language?.startsWith('en'));
-    enVoices.sort((a, b) => {
-      const aGb = a.language === TARGET_LANG ? 1 : 0;
-      const bGb = b.language === TARGET_LANG ? 1 : 0;
-      if (aGb !== bGb) return bGb - aGb;
-      return (a.name ?? '').localeCompare(b.name ?? '');
-    });
-    return enVoices;
+    const enGb = voices.filter((v) => v.language === TARGET_LANG);
+    enGb.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+    return enGb;
   } catch {
     return [];
   }

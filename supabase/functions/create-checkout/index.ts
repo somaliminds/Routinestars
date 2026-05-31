@@ -7,12 +7,15 @@
  * Body: { userId: string, priceId: string, successUrl: string, cancelUrl: string }
  * Returns: { url: string } — redirect to Stripe hosted checkout
  */
-import Stripe from 'https://esm.sh/stripe@14?target=deno';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Stripe from 'npm:stripe@17';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.99.0';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+if (!stripeKey) {
+  console.error('FATAL: STRIPE_SECRET_KEY is not set in Edge Function secrets');
+}
+const stripe = new Stripe(stripeKey ?? 'sk_test_placeholder', {
   apiVersion: '2024-06-20',
-  httpClient: Stripe.createFetchHttpClient(),
 });
 
 const supabase = createClient(
@@ -20,9 +23,14 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
 );
 
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: JSON_HEADERS,
+    });
   }
 
   const { userId, priceId, successUrl, cancelUrl } = await req.json() as {
@@ -33,7 +41,10 @@ Deno.serve(async (req) => {
   };
 
   if (!userId || !priceId) {
-    return new Response(JSON.stringify({ error: 'userId and priceId required' }), { status: 400 });
+    return new Response(JSON.stringify({ error: 'userId and priceId required' }), {
+      status: 400,
+      headers: JSON_HEADERS,
+    });
   }
 
   // Get or create Stripe customer
@@ -55,15 +66,24 @@ Deno.serve(async (req) => {
     customerId = customer.id;
   }
 
+  // Stripe requires HTTPS success/cancel URLs. Use our subscription-redirect
+  // edge function to bridge HTTPS → routinestars:// custom scheme on the device.
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const defaultSuccess = `${supabaseUrl}/functions/v1/subscription-redirect?status=success`;
+  const defaultCancel = `${supabaseUrl}/functions/v1/subscription-redirect?status=cancel`;
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
     metadata: { user_id: userId },
-    success_url: successUrl ?? 'routinestars://subscription/success',
-    cancel_url: cancelUrl ?? 'routinestars://subscription/cancel',
+    success_url: successUrl ?? defaultSuccess,
+    cancel_url: cancelUrl ?? defaultCancel,
     allow_promotion_codes: true,
   });
 
-  return new Response(JSON.stringify({ url: session.url }), { status: 200 });
+  return new Response(JSON.stringify({ url: session.url }), {
+    status: 200,
+    headers: JSON_HEADERS,
+  });
 });
