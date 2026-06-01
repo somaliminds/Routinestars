@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy Policy — RoutineStars</title>
+<meta name="description" content="RoutineStars Privacy Policy. COPPA and UK GDPR compliant. We never sell or share child data.">
+<style>
+  :root {
+    --bg: #F5F0FF;
+    --card: #FFFFFF;
+    --text: #111827;
+    --text-soft: #374151;
+    --text-mute: #6B7280;
+    --text-faint: #9CA3AF;
+    --brand: #7C3AED;
+    --brand-dark: #5B21B6;
+    --divider: #F3F4F6;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+  .brand {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .brand .star { font-size: 44px; line-height: 1; }
+  .brand .name {
+    font-size: 22px; font-weight: 800; color: var(--brand-dark);
+    margin-top: 6px; letter-spacing: -0.3px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 24px;
+    padding: 36px 32px;
+    box-shadow: 0 4px 24px rgba(124, 58, 237, 0.10);
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+  }
+  .updated {
+    color: var(--text-faint);
+    font-size: 13px;
+    margin: 0 0 28px;
+  }
+  h2 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 28px 0 8px;
+  }
+  p, ul {
+    color: var(--text-soft);
+    font-size: 15px;
+    margin: 0 0 12px;
+  }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  hr {
+    border: none; border-top: 1px solid var(--divider);
+    margin: 32px 0;
+  }
+  footer {
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 12px;
+    margin-top: 36px;
+  }
+  footer p { font-size: 12px; color: var(--text-faint); margin-bottom: 6px; }
+  .tagline {
+    font-size: 13px; font-weight: 600; color: var(--brand-dark);
+    margin-bottom: 4px;
+  }
+  @media (max-width: 480px) {
+    .wrap { padding: 20px 14px 40px; }
+    .card { padding: 26px 22px; border-radius: 20px; }
+    h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <div class="star">🌟</div>
+    <div class="name">RoutineStars</div>
+  </div>
+
+  <div class="card">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: 1 June 2026</p>
+
+    <h2>1. Who We Are</h2>
+    <p>RoutineStars Ltd ("RoutineStars", "we", "us", "our") operates the RoutineStars mobile application. We are registered in England and Wales.</p>
+    <p>Contact: <a href="mailto:privacy@routinestars.co.uk">privacy@routinestars.co.uk</a></p>
+
+    <h2>2. What Data We Collect</h2>
+    <p><strong>Parent accounts:</strong></p>
+    <ul>
+      <li>Email address and password (via Supabase Auth)</li>
+      <li>Parent PIN (stored as a one-way bcrypt hash — never recoverable)</li>
+      <li>Notification preferences</li>
+      <li>Subscription and billing data (processed by Stripe — we do not store card details)</li>
+    </ul>
+    <p><strong>Child profiles:</strong></p>
+    <ul>
+      <li>Child's first name and date of birth</li>
+      <li>Avatar emoji selected by parent</li>
+      <li>Daily routine schedule and activity completion records</li>
+      <li>Stars earned and badges awarded</li>
+      <li>Step-by-step completion timings (seconds per step)</li>
+    </ul>
+    <p><strong>Device data:</strong></p>
+    <ul>
+      <li>Push notification token (for approval alerts)</li>
+      <li>App version and device OS (for crash reporting via Sentry)</li>
+    </ul>
+
+    <h2>3. Children's Privacy (COPPA &amp; UK GDPR)</h2>
+    <p>RoutineStars is designed for use by children aged 4–14 under the direct supervision and control of a parent or guardian.</p>
+    <ul>
+      <li>Children do not create their own accounts. All child profiles are created and managed by a verified parent.</li>
+      <li>We do not knowingly collect personal data directly from children.</li>
+      <li>No third-party advertising SDKs are present on any child-facing screen.</li>
+      <li>Children cannot interact with any data collection features without parental oversight.</li>
+      <li>Parents can view, edit, or delete all child data at any time from the Settings screen.</li>
+    </ul>
+    <p>If you believe we have inadvertently collected data from a child without parental consent, contact us at <a href="mailto:privacy@routinestars.co.uk">privacy@routinestars.co.uk</a> and we will delete it within 48 hours.</p>
+
+    <h2>4. Legal Basis for Processing (UK GDPR)</h2>
+    <ul>
+      <li><strong>Contract performance:</strong> account management, schedule delivery, approval flow</li>
+      <li><strong>Legitimate interests:</strong> app security, crash reporting, streak calculations</li>
+      <li><strong>Consent:</strong> marketing emails (opt-in only, separate from service emails)</li>
+      <li><strong>Legal obligation:</strong> retaining transaction records as required by UK law</li>
+    </ul>
+
+    <h2>5. How We Use Your Data</h2>
+    <ul>
+      <li>Deliver the daily routine scheduling and gamification service</li>
+      <li>Send push notifications to parents when a child requests approval</li>
+      <li>Process subscription payments via Stripe</li>
+      <li>Diagnose crashes and technical errors (Sentry — anonymised)</li>
+      <li>Calculate streaks, badges, and star rewards</li>
+      <li>Generate progress reports for parents</li>
+    </ul>
+
+    <h2>6. Data Retention</h2>
+    <ul>
+      <li>Activity completion records: 90 days, then automatically deleted</li>
+      <li>Annual progress reports: 1 year</li>
+      <li>Account data: retained until account deletion</li>
+      <li>Deleted accounts: all personal data removed within 30 days</li>
+      <li>Stripe billing records: 7 years (legal requirement)</li>
+    </ul>
+
+    <h2>7. Data Sharing</h2>
+    <p>We share data only with:</p>
+    <ul>
+      <li><strong>Supabase</strong> — database and authentication, hosted in EU</li>
+      <li><strong>Stripe</strong> — payment processing, PCI DSS Level 1 certified</li>
+      <li><strong>Sentry</strong> — crash reporting, anonymised data only</li>
+      <li><strong>Firebase</strong> — push notifications, device token only</li>
+      <li><strong>Resend</strong> — transactional email delivery</li>
+    </ul>
+    <p>We do not sell, rent, or trade any personal data. We do not share child data with any third party beyond what is strictly required to operate the service.</p>
+
+    <h2>8. Your Rights (UK GDPR)</h2>
+    <p>You have the right to:</p>
+    <ul>
+      <li><strong>Access:</strong> request a copy of all data we hold about you</li>
+      <li><strong>Rectification:</strong> correct inaccurate data</li>
+      <li><strong>Erasure:</strong> request deletion of your account and all associated data</li>
+      <li><strong>Portability:</strong> receive your data in a machine-readable format</li>
+      <li><strong>Restriction:</strong> limit how we process your data</li>
+      <li><strong>Objection:</strong> object to processing based on legitimate interests</li>
+    </ul>
+    <p>To exercise any right, email <a href="mailto:privacy@routinestars.co.uk">privacy@routinestars.co.uk</a>. We will respond within 30 days.</p>
+
+    <h2>9. Security</h2>
+    <ul>
+      <li>All data in transit is encrypted via TLS 1.2+</li>
+      <li>Parent PINs are hashed with bcrypt (cost factor 12) and never stored in plaintext</li>
+      <li>Authentication uses short-lived JWT tokens (15 minutes) stored in device SecureStore</li>
+      <li>Row-level security policies ensure each parent can only access their own data</li>
+      <li>Stripe handles all payment data — we never see card numbers</li>
+    </ul>
+
+    <h2>10. Cookies &amp; Analytics</h2>
+    <p>The mobile app does not use cookies. We do not use Google Analytics or similar tracking tools. Anonymous crash reports are collected via Sentry solely for improving app stability.</p>
+
+    <h2>11. Changes to This Policy</h2>
+    <p>We will notify you of material changes via the email address on your account at least 14 days before changes take effect. Continued use of the app after that date constitutes acceptance.</p>
+
+    <h2>12. Contact &amp; Complaints</h2>
+    <p>Email: <a href="mailto:privacy@routinestars.co.uk">privacy@routinestars.co.uk</a></p>
+    <p>If you are unhappy with how we handle your data, you have the right to lodge a complaint with the Information Commissioner's Office (ICO) at <a href="https://ico.org.uk" target="_blank" rel="noopener">ico.org.uk</a>.</p>
+
+  </div>
+
+  <footer>
+    <p class="tagline">Building independence, one star at a time ⭐</p>
+    <p>© 2026 RoutineStars Ltd. All rights reserved.</p>
+    <p><a href="/">Home</a> · <a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a></p>
+  </footer>
+
+</div>
+</body>
+</html>
