@@ -40,7 +40,7 @@ serve(async (req: Request) => {
     }
 
     const resendKey = Deno.env.get('RESEND_API_KEY') ?? '';
-    const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') ?? 'onboarding@resend.dev';
+    const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') ?? 'noreply@routinestars.co.uk';
 
     if (!resendKey || resendKey.startsWith('re_your')) {
       console.error('[send-care-invite] RESEND_API_KEY not configured');

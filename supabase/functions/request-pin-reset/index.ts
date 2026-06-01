@@ -90,7 +90,7 @@ serve(async (req) => {
     const resetLink = `${supabaseUrl}/functions/v1/reset-redirect?token=${token}`;
 
     const resendKey = Deno.env.get('RESEND_API_KEY') ?? '';
-    const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') ?? 'hello@routinestars.app';
+    const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') ?? 'noreply@routinestars.co.uk';
 
     if (resendKey && !resendKey.startsWith('re_your')) {
       const res = await fetch('https://api.resend.com/emails', {
