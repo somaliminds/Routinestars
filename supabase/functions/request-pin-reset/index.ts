@@ -42,6 +42,43 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // ── Auth check ─────────────────────────────────────────────────────────
+    // If the request carries an authenticated user session, lock the reset
+    // to THAT user's own email. Prevents a logged-in user from triggering
+    // reset emails to other users' inboxes (harassment / spam vector).
+    // If no auth header is present, allow the request (legit "forgot everything"
+    // scenario from the login screen).
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const userJwt = authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : '';
+
+    // Don't treat the anon-key as a logged-in user — it's just the public key
+    // the SDK always attaches. Real user JWTs come from auth and are different.
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const isLoggedInRequest = userJwt && userJwt !== anonKey;
+
+    if (isLoggedInRequest) {
+      try {
+        const { data: userResult } = await supabase.auth.getUser(userJwt);
+        const authedEmail = userResult?.user?.email?.toLowerCase().trim();
+        const requestedEmail = email.toLowerCase().trim();
+        if (authedEmail && authedEmail !== requestedEmail) {
+          console.log(
+            '[request-pin-reset] refusing: logged-in user',
+            authedEmail,
+            'tried to reset',
+            requestedEmail,
+          );
+          // Silently succeed to avoid revealing whose accounts exist
+          return SUCCESS;
+        }
+      } catch (jwtErr) {
+        // If JWT is invalid, treat as anonymous request (no restriction)
+        console.warn('[request-pin-reset] could not decode JWT, treating as anon:', jwtErr);
+      }
+    }
+
     // Look up user by email via direct auth admin API call.
     // (getUserByEmail SDK method was removed in newer supabase-js versions.)
     const normalisedEmail = email.toLowerCase().trim();
