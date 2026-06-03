@@ -68,17 +68,31 @@ function AuthGuard() {
     const inAuthGroup = segments[0] === '(auth)';
     const inParentGroup = segments[0] === '(parent)';
 
-    // PIN reset routes must remain reachable even when signed in —
-    // the email/password session is separate from the parent PIN.
-    const PIN_RESET_ROUTES = new Set(['forgot-pin', 'reset-pin']);
-    const onPinResetRoute = inAuthGroup && PIN_RESET_ROUTES.has(segments[1] as string);
+    // These (auth) routes must remain reachable WHILE signed in:
+    //   - forgot-pin/reset-pin → PIN is a separate credential from auth session
+    //   - setup-pin → first-time PIN creation right after signup
+    //   - create-child-profile → first-time child onboarding
+    //   - choose-plan → first-time plan picker (Stripe redirect lands back here)
+    //   - schedule-wizard → first-time schedule creation
+    // Without these in the whitelist, AuthGuard bumps new signups
+    // straight to /(parent)/dashboard, skipping the entire onboarding.
+    const AUTH_GROUP_WHITELIST = new Set([
+      'forgot-pin',
+      'reset-pin',
+      'setup-pin',
+      'create-child-profile',
+      'choose-plan',
+      'schedule-wizard',
+    ]);
+    const onWhitelistedAuthRoute =
+      inAuthGroup && AUTH_GROUP_WHITELIST.has(segments[1] as string);
 
     if (!session) {
       if (!inAuthGroup) router.replace('/(auth)/welcome');
       return;
     }
 
-    if (inAuthGroup && !onPinResetRoute) {
+    if (inAuthGroup && !onWhitelistedAuthRoute) {
       if (role === 'parent') router.replace('/(parent)/dashboard');
       else router.replace('/(child)/select-profile');
       return;
