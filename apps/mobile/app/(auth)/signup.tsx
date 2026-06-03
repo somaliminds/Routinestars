@@ -5,7 +5,15 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
-import { AuthLayout, AuthInput, PrimaryButton, TextLink } from '@/components/ui/AuthLayout';
+import { signInWithProvider } from '@/lib/oauth';
+import {
+  AuthLayout,
+  AuthInput,
+  PrimaryButton,
+  TextLink,
+  GoogleButton,
+  OrDivider,
+} from '@/components/ui/AuthLayout';
 
 const signupSchema = z
   .object({
@@ -28,6 +36,16 @@ type SignupForm = z.infer<typeof signupSchema>;
 export default function SignupScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  async function handleGoogle() {
+    setIsGoogleLoading(true);
+    const result = await signInWithProvider('google');
+    setIsGoogleLoading(false);
+    if (!result.ok && result.error !== 'OAuth cancelled') {
+      Alert.alert('Google sign-up failed', 'Please try again or use email instead.');
+    }
+  }
 
   const {
     control,
@@ -61,6 +79,8 @@ export default function SignupScreen() {
 
   return (
     <AuthLayout brand title="Create your account" subtitle="Set up RoutineStars for your family">
+      <GoogleButton onPress={handleGoogle} isLoading={isGoogleLoading} label="Sign up with Google" />
+      <OrDivider />
       <Controller
         control={control}
         name="name"

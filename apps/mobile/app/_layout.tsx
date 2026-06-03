@@ -1,6 +1,6 @@
 import '../global.css';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -39,43 +39,78 @@ function AuthGuard() {
   const { session, isLoading } = useAuthStore();
   const [role, setRole] = useState<'parent' | 'child' | null>(null);
   const [roleLoading, setRoleLoading] = useState(false);
+  /** True when this parent has the placeholder PIN and must complete setup-pin */
+  const [needsPinSetup, setNeedsPinSetup] = useState<boolean | null>(null);
+
+  // Read pin_hash for a parent and decide if real PIN exists yet.
+  const checkPinStatus = useCallback(async (userId: string): Promise<boolean> => {
+    const { data } = await supabase
+      .from('parent_profiles')
+      .select('pin_hash')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const hash = data?.pin_hash ?? '';
+    // Trigger sets a known placeholder string at signup.
+    return !hash || hash.includes('placeholder');
+  }, []);
 
   useEffect(() => {
     if (!session) {
       setRole(null);
+      setNeedsPinSetup(null);
       return;
     }
     setRoleLoading(true);
     void (async () => {
       try {
-        const { data } = await supabase
+        const { data: userRow } = await supabase
           .from('users')
           .select('role')
           .eq('user_id', session.user.id)
           .single();
-        setRole((data?.role as 'parent' | 'child') ?? 'parent');
+        const resolvedRole = (userRow?.role as 'parent' | 'child') ?? 'parent';
+        setRole(resolvedRole);
+
+        // First-time PIN gate flag.
+        if (resolvedRole === 'parent') {
+          setNeedsPinSetup(await checkPinStatus(session.user.id));
+        } else {
+          setNeedsPinSetup(false);
+        }
       } catch {
         setRole('parent');
+        setNeedsPinSetup(false);
       } finally {
         setRoleLoading(false);
       }
     })();
-  }, [session?.user.id]);
+  }, [session?.user.id, checkPinStatus]);
+
+  // Re-check PIN status whenever the user navigates back into the parent
+  // app or out of setup-pin — so the stale needsPinSetup=true flag from
+  // initial mount gets cleared right after the user completes setup-pin.
+  useEffect(() => {
+    if (
+      session &&
+      role === 'parent' &&
+      needsPinSetup === true &&
+      (segments[0] === '(parent)' || segments[1] === 'create-child-profile')
+    ) {
+      void (async () => {
+        const stillNeeds = await checkPinStatus(session.user.id);
+        if (!stillNeeds) setNeedsPinSetup(false);
+      })();
+    }
+  }, [segments[0], segments[1], session?.user.id, role, needsPinSetup, checkPinStatus]);
 
   useEffect(() => {
     if (isLoading || roleLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inParentGroup = segments[0] === '(parent)';
+    const currentRoute = segments[1] as string | undefined;
 
-    // These (auth) routes must remain reachable WHILE signed in:
-    //   - forgot-pin/reset-pin → PIN is a separate credential from auth session
-    //   - setup-pin → first-time PIN creation right after signup
-    //   - create-child-profile → first-time child onboarding
-    //   - choose-plan → first-time plan picker (Stripe redirect lands back here)
-    //   - schedule-wizard → first-time schedule creation
-    // Without these in the whitelist, AuthGuard bumps new signups
-    // straight to /(parent)/dashboard, skipping the entire onboarding.
+    // These (auth) routes must remain reachable WHILE signed in.
     const AUTH_GROUP_WHITELIST = new Set([
       'forgot-pin',
       'reset-pin',
@@ -85,10 +120,24 @@ function AuthGuard() {
       'schedule-wizard',
     ]);
     const onWhitelistedAuthRoute =
-      inAuthGroup && AUTH_GROUP_WHITELIST.has(segments[1] as string);
+      inAuthGroup && AUTH_GROUP_WHITELIST.has(currentRoute ?? '');
 
     if (!session) {
       if (!inAuthGroup) router.replace('/(auth)/welcome');
+      return;
+    }
+
+    // First-time PIN gate: a parent who hasn't completed setup-pin must
+    // be there before anything else. Routes them out of the parent app or
+    // any non-PIN auth route until the real PIN is saved.
+    if (
+      role === 'parent' &&
+      needsPinSetup === true &&
+      currentRoute !== 'setup-pin' &&
+      currentRoute !== 'reset-pin' &&
+      currentRoute !== 'forgot-pin'
+    ) {
+      router.replace('/(auth)/setup-pin');
       return;
     }
 
@@ -100,7 +149,7 @@ function AuthGuard() {
 
     // Children cannot access the parent section
     if (role === 'child' && inParentGroup) router.replace('/(child)/select-profile');
-  }, [session, isLoading, role, roleLoading, segments, router]);
+  }, [session, isLoading, role, roleLoading, needsPinSetup, segments, router]);
 
   return null;
 }

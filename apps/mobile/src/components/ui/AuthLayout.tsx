@@ -154,6 +154,46 @@ export function TextLink({ label, onPress }: { label: string; onPress: () => voi
   );
 }
 
+/** Brand-styled "Continue with Google" button + optional inline divider. */
+export function GoogleButton({
+  onPress,
+  isLoading,
+  label = 'Continue with Google',
+}: {
+  onPress: () => void;
+  isLoading?: boolean;
+  label?: string;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={isLoading}
+      style={styles.googleBtn}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      {isLoading ? (
+        <ActivityIndicator color="#5B21B6" />
+      ) : (
+        <>
+          <Text style={styles.googleIcon}>G</Text>
+          <Text style={styles.googleText}>{label}</Text>
+        </>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+export function OrDivider() {
+  return (
+    <View style={styles.dividerRow}>
+      <View style={styles.dividerLine} />
+      <Text style={styles.dividerText}>or</Text>
+      <View style={styles.dividerLine} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F5F0FF' },
   kav: { flex: 1 },
@@ -272,6 +312,45 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     fontSize: 14,
     color: '#7C3AED',
+  },
+
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 18,
+    paddingVertical: 14,
+    minHeight: 56,
+    borderWidth: 1,
+    borderColor: 'rgba(124,58,237,0.18)',
+    gap: 10,
+  },
+  googleIcon: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 18,
+    color: '#4285F4',
+    lineHeight: 22,
+  },
+  googleText: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 15,
+    color: '#1F2937',
+  },
+
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+    gap: 10,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(124,58,237,0.18)' },
+  dividerText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 
   footer: { marginTop: 18, alignItems: 'center' },
