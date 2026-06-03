@@ -1,22 +1,12 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ScrollView,
-} from 'react-native';
+import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
+import { AuthLayout, AuthInput, PrimaryButton, TextLink } from '@/components/ui/AuthLayout';
 
-// Quality Rule 5: Zod schema validation
 const signupSchema = z
   .object({
     name: z.string().min(2, 'Please enter your name'),
@@ -63,8 +53,6 @@ export default function SignupScreen() {
         Alert.alert('Sign Up Failed', 'Please check your details and try again.');
         return;
       }
-
-      // Navigate to email verification screen
       router.push('/(auth)/verify-email');
     } finally {
       setIsLoading(false);
@@ -72,155 +60,80 @@ export default function SignupScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-neutral-100"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="justify-center px-6 py-10"
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text className="text-heading font-nunito-bold text-neutral-900 mb-2">
-          Create your account
-        </Text>
-        <Text className="text-body font-nunito text-neutral-500 mb-8">
-          Set up RoutineStars for your family
-        </Text>
-
-        {/* Name */}
-        <View className="mb-4">
-          <Text className="text-parent-body font-inter-medium text-neutral-900 mb-1">
-            Your name
-          </Text>
-          <Controller
-            control={control}
-            name="name"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                className="bg-white border border-neutral-100 rounded-xl px-4 py-3 text-neutral-900 font-inter text-parent-body"
-                placeholder="e.g. Sarah"
-                autoCapitalize="words"
-                autoComplete="name"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                accessibilityLabel="Your name"
-              />
-            )}
+    <AuthLayout brand title="Create your account" subtitle="Set up RoutineStars for your family">
+      <Controller
+        control={control}
+        name="name"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <AuthInput
+            label="Your name"
+            placeholder="e.g. Sarah"
+            autoCapitalize="words"
+            autoComplete="name"
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+            error={errors.name?.message}
           />
-          {errors.name && (
-            <Text className="text-caption font-inter text-accent-danger mt-1">
-              {errors.name.message}
-            </Text>
-          )}
-        </View>
+        )}
+      />
 
-        {/* Email */}
-        <View className="mb-4">
-          <Text className="text-parent-body font-inter-medium text-neutral-900 mb-1">
-            Email address
-          </Text>
-          <Controller
-            control={control}
-            name="email"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                className="bg-white border border-neutral-100 rounded-xl px-4 py-3 text-neutral-900 font-inter text-parent-body"
-                placeholder="you@example.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                accessibilityLabel="Email address"
-              />
-            )}
+      <Controller
+        control={control}
+        name="email"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <AuthInput
+            label="Email address"
+            placeholder="you@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+            error={errors.email?.message}
           />
-          {errors.email && (
-            <Text className="text-caption font-inter text-accent-danger mt-1">
-              {errors.email.message}
-            </Text>
-          )}
-        </View>
+        )}
+      />
 
-        {/* Password */}
-        <View className="mb-4">
-          <Text className="text-parent-body font-inter-medium text-neutral-900 mb-1">Password</Text>
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                className="bg-white border border-neutral-100 rounded-xl px-4 py-3 text-neutral-900 font-inter text-parent-body"
-                placeholder="Min 8 chars, 1 uppercase, 1 number"
-                secureTextEntry
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                accessibilityLabel="Password"
-              />
-            )}
+      <Controller
+        control={control}
+        name="password"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <AuthInput
+            label="Password"
+            placeholder="Min 8 chars, 1 uppercase, 1 number"
+            secureTextEntry
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+            error={errors.password?.message}
           />
-          {errors.password && (
-            <Text className="text-caption font-inter text-accent-danger mt-1">
-              {errors.password.message}
-            </Text>
-          )}
-        </View>
+        )}
+      />
 
-        {/* Confirm Password */}
-        <View className="mb-6">
-          <Text className="text-parent-body font-inter-medium text-neutral-900 mb-1">
-            Confirm password
-          </Text>
-          <Controller
-            control={control}
-            name="confirmPassword"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                className="bg-white border border-neutral-100 rounded-xl px-4 py-3 text-neutral-900 font-inter text-parent-body"
-                placeholder="••••••••"
-                secureTextEntry
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                accessibilityLabel="Confirm password"
-              />
-            )}
+      <Controller
+        control={control}
+        name="confirmPassword"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <AuthInput
+            label="Confirm password"
+            placeholder="••••••••"
+            secureTextEntry
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+            error={errors.confirmPassword?.message}
           />
-          {errors.confirmPassword && (
-            <Text className="text-caption font-inter text-accent-danger mt-1">
-              {errors.confirmPassword.message}
-            </Text>
-          )}
-        </View>
+        )}
+      />
 
-        {/* Create Account Button */}
-        <TouchableOpacity
-          className="bg-brand-primary rounded-2xl py-4 items-center min-h-[60px] justify-center"
-          onPress={handleSubmit(onSubmit)}
-          disabled={isLoading}
-          accessibilityLabel="Create account"
-          accessibilityRole="button"
-        >
-          {isLoading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text className="text-subhead font-nunito-bold text-white">Create Account</Text>
-          )}
-        </TouchableOpacity>
+      <PrimaryButton label="Create Account" onPress={handleSubmit(onSubmit)} isLoading={isLoading} />
 
-        <View className="flex-row justify-center mt-4">
-          <Text className="text-parent-body font-inter text-neutral-500">
-            Already have an account?{' '}
-          </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-            <Text className="text-parent-body font-inter-semibold text-brand-primary">Sign in</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <TextLink
+        label="Already have an account? Sign in"
+        onPress={() => router.push('/(auth)/login')}
+      />
+    </AuthLayout>
   );
 }

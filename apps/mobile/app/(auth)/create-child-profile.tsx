@@ -1,19 +1,12 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
+import { AuthLayout, AuthInput, PrimaryButton } from '@/components/ui/AuthLayout';
 
 const AVATAR_EMOJIS = ['🌟', '🦁', '🐻', '🦊', '🐼', '🐨', '🐯', '🦋', '🐸', '🦄'];
 
@@ -33,21 +26,18 @@ type ChildProfileForm = z.infer<typeof childProfileSchema>;
 export default function CreateChildProfileScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const [selectedEmoji, setSelectedEmoji] = useState(AVATAR_EMOJIS[0]);
+  const [selectedEmoji, setSelectedEmoji] = useState<string>(AVATAR_EMOJIS[0]!);
   const [isLoading, setIsLoading] = useState(false);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<ChildProfileForm>({
-    resolver: zodResolver(childProfileSchema),
-  });
+  } = useForm<ChildProfileForm>({ resolver: zodResolver(childProfileSchema) });
 
   const onSubmit = async (data: ChildProfileForm) => {
     if (!user) return;
     setIsLoading(true);
-
     try {
       const { error } = await supabase.from('child_profiles').insert({
         parent_id: user.id,
@@ -55,13 +45,10 @@ export default function CreateChildProfileScreen() {
         date_of_birth: data.dateOfBirth,
         avatar_emoji: selectedEmoji,
       });
-
       if (error) {
         Alert.alert('Error', 'Could not create child profile. Please try again.');
         return;
       }
-
-      // Profile created — route to plan picker
       router.replace('/(auth)/choose-plan');
     } finally {
       setIsLoading(false);
@@ -69,104 +56,100 @@ export default function CreateChildProfileScreen() {
   };
 
   return (
-    <ScrollView
-      className="flex-1 bg-neutral-100"
-      contentContainerClassName="px-6 py-10"
-      keyboardShouldPersistTaps="handled"
+    <AuthLayout
+      emoji="👶"
+      title="Add your child"
+      subtitle="Set up your child's profile to get started"
     >
-      <Text className="text-heading font-nunito-bold text-neutral-900 mb-2">Add your child</Text>
-      <Text className="text-body font-nunito text-neutral-500 mb-8">
-        Set up your child's profile to get started
-      </Text>
-
-      {/* Avatar emoji picker */}
-      <Text className="text-parent-body font-inter-medium text-neutral-900 mb-3">
-        Choose an avatar
-      </Text>
-      <View className="flex-row flex-wrap gap-3 mb-6">
-        {AVATAR_EMOJIS.map((emoji) => (
-          <TouchableOpacity
-            key={emoji}
-            className={`w-[60px] h-[60px] rounded-2xl items-center justify-center ${
-              selectedEmoji === emoji ? 'bg-brand-primary' : 'bg-white'
-            }`}
-            onPress={() => setSelectedEmoji(emoji)}
-            accessibilityLabel={`Avatar ${emoji}`}
-            accessibilityState={{ selected: selectedEmoji === emoji }}
-          >
-            <Text className="text-[28px]">{emoji}</Text>
-          </TouchableOpacity>
-        ))}
+      <Text style={styles.sectionLabel}>Choose an avatar</Text>
+      <View style={styles.avatars}>
+        {AVATAR_EMOJIS.map((emoji) => {
+          const selected = selectedEmoji === emoji;
+          return (
+            <TouchableOpacity
+              key={emoji}
+              style={[styles.avatar, selected && styles.avatarSelected]}
+              onPress={() => setSelectedEmoji(emoji)}
+              accessibilityLabel={`Avatar ${emoji}`}
+              accessibilityState={{ selected }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.avatarEmoji}>{emoji}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {/* Child's name */}
-      <View className="mb-4">
-        <Text className="text-parent-body font-inter-medium text-neutral-900 mb-1">
-          Child's name
-        </Text>
-        <Controller
-          control={control}
-          name="childName"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              className="bg-white border border-neutral-100 rounded-xl px-4 py-3 text-neutral-900 font-inter text-parent-body"
-              placeholder="e.g. Jamie"
-              autoCapitalize="words"
-              onBlur={onBlur}
-              onChangeText={onChange}
-              value={value}
-              accessibilityLabel="Child's name"
-            />
-          )}
-        />
-        {errors.childName && (
-          <Text className="text-caption font-inter text-accent-danger mt-1">
-            {errors.childName.message}
-          </Text>
+      <Controller
+        control={control}
+        name="childName"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <AuthInput
+            label="Child's name"
+            placeholder="e.g. Jamie"
+            autoCapitalize="words"
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+            error={errors.childName?.message}
+          />
         )}
-      </View>
+      />
 
-      {/* Date of birth */}
-      <View className="mb-8">
-        <Text className="text-parent-body font-inter-medium text-neutral-900 mb-1">
-          Date of birth
-        </Text>
-        <Controller
-          control={control}
-          name="dateOfBirth"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              className="bg-white border border-neutral-100 rounded-xl px-4 py-3 text-neutral-900 font-inter text-parent-body"
-              placeholder="YYYY-MM-DD (e.g. 2018-05-23)"
-              keyboardType="numeric"
-              onBlur={onBlur}
-              onChangeText={onChange}
-              value={value}
-              accessibilityLabel="Date of birth"
-            />
-          )}
-        />
-        {errors.dateOfBirth && (
-          <Text className="text-caption font-inter text-accent-danger mt-1">
-            {errors.dateOfBirth.message}
-          </Text>
+      <Controller
+        control={control}
+        name="dateOfBirth"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <AuthInput
+            label="Date of birth"
+            placeholder="YYYY-MM-DD"
+            keyboardType="numeric"
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+            error={errors.dateOfBirth?.message}
+          />
         )}
-      </View>
+      />
 
-      {/* Continue button */}
-      <TouchableOpacity
-        className="bg-brand-primary rounded-2xl py-4 items-center min-h-[60px] justify-center"
-        onPress={handleSubmit(onSubmit)}
-        disabled={isLoading}
-        accessibilityLabel="Create child profile and continue"
-        accessibilityRole="button"
-      >
-        {isLoading ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <Text className="text-subhead font-nunito-bold text-white">Continue</Text>
-        )}
-      </TouchableOpacity>
-    </ScrollView>
+      <PrimaryButton label="Continue" onPress={handleSubmit(onSubmit)} isLoading={isLoading} />
+    </AuthLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  sectionLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#5B21B6',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  avatars: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(124,58,237,0.18)',
+  },
+  avatarSelected: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#5B21B6',
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  avatarEmoji: { fontSize: 28 },
+});

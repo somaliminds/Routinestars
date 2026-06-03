@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
@@ -28,10 +29,8 @@ export default function SetupPinScreen() {
 
     if (next.length === PIN_LENGTH) {
       if (step === 'create') {
-        // Move to confirm step
         setTimeout(() => setStep('confirm'), 300);
       } else {
-        // Confirm step — verify match
         if (pin !== next) {
           Alert.alert('PINs do not match', 'Please try again.');
           setPin('');
@@ -52,7 +51,6 @@ export default function SetupPinScreen() {
   const handleSavePin = async (confirmedPin: string) => {
     setIsLoading(true);
     try {
-      // Refresh session before calling edge function — prevents 401 on first-time setup
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session) {
         Alert.alert('Session expired', 'Please sign in again.');
@@ -60,7 +58,6 @@ export default function SetupPinScreen() {
         return;
       }
 
-      // Hash PIN via Supabase Edge Function (bcrypt cost 12)
       const { data, error } = await supabase.functions.invoke('hash-pin', {
         body: { pin: confirmedPin },
       });
@@ -99,57 +96,102 @@ export default function SetupPinScreen() {
   const digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
 
   return (
-    <View className="flex-1 bg-neutral-100 items-center justify-center px-6">
-      <Text className="text-heading font-nunito-bold text-neutral-900 mb-2 text-center">
-        {step === 'create' ? 'Create your PIN' : 'Confirm your PIN'}
-      </Text>
-      <Text className="text-body font-nunito text-neutral-500 mb-10 text-center">
-        {step === 'create'
-          ? 'Choose a 4-digit PIN to protect your parent settings'
-          : 'Enter your PIN again to confirm'}
-      </Text>
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.content}>
+        <Text style={styles.emoji}>🔒</Text>
+        <Text style={styles.title}>{step === 'create' ? 'Create your PIN' : 'Confirm your PIN'}</Text>
+        <Text style={styles.subtitle}>
+          {step === 'create'
+            ? 'Choose a 4-digit PIN to protect your parent settings'
+            : 'Enter your PIN again to confirm'}
+        </Text>
 
-      {/* PIN dots */}
-      <View className="flex-row gap-3 mb-12">
-        {Array.from({ length: PIN_LENGTH }).map((_, i) => (
-          <View
-            key={i}
-            className={`w-5 h-5 rounded-full ${
-              i < currentPin.length
-                ? 'bg-brand-primary'
-                : 'bg-neutral-100 border-2 border-neutral-500'
-            }`}
-          />
-        ))}
-      </View>
+        {/* PIN dots */}
+        <View style={styles.dots}>
+          {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i < currentPin.length ? styles.dotFilled : styles.dotEmpty]}
+            />
+          ))}
+        </View>
 
-      {/* Numpad — min 80x80px touch targets */}
-      <View className="w-full max-w-xs">
-        {[0, 1, 2, 3].map((row) => (
-          <View key={row} className="flex-row justify-between mb-3">
-            {digits.slice(row * 3, row * 3 + 3).map((digit, i) => (
-              <TouchableOpacity
-                key={i}
-                className={`w-[80px] h-[80px] rounded-2xl items-center justify-center ${
-                  digit === '' ? 'opacity-0' : 'bg-white'
-                }`}
-                onPress={() => {
-                  if (digit === '⌫') handleDelete();
-                  else if (digit !== '') handleDigit(digit);
-                }}
-                disabled={digit === '' || isLoading}
-                accessibilityLabel={digit === '⌫' ? 'Delete' : `Digit ${digit}`}
-              >
-                {isLoading && digit === '0' ? (
-                  <ActivityIndicator color="#7C3AED" />
-                ) : (
-                  <Text className="text-heading font-nunito-bold text-neutral-900">{digit}</Text>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        ))}
+        {/* Numpad */}
+        <View style={styles.pad}>
+          {[0, 1, 2, 3].map((row) => (
+            <View key={row} style={styles.padRow}>
+              {digits.slice(row * 3, row * 3 + 3).map((digit, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={[styles.key, digit === '' && { opacity: 0 }]}
+                  onPress={() => {
+                    if (digit === '⌫') handleDelete();
+                    else if (digit !== '') handleDigit(digit);
+                  }}
+                  disabled={digit === '' || isLoading}
+                  accessibilityLabel={digit === '⌫' ? 'Delete' : `Digit ${digit}`}
+                  activeOpacity={0.7}
+                >
+                  {isLoading && digit === '0' ? (
+                    <ActivityIndicator color="#7C3AED" />
+                  ) : (
+                    <Text style={styles.keyText}>{digit}</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))}
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#F5F0FF' },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  emoji: { fontSize: 48, marginBottom: 8 },
+  title: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 26,
+    color: '#5B21B6',
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontFamily: 'Nunito_400Regular',
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 36,
+    paddingHorizontal: 16,
+    lineHeight: 22,
+  },
+  dots: { flexDirection: 'row', gap: 14, marginBottom: 40 },
+  dot: { width: 18, height: 18, borderRadius: 9 },
+  dotFilled: { backgroundColor: '#7C3AED' },
+  dotEmpty: {
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 2,
+    borderColor: 'rgba(124,58,237,0.35)',
+  },
+  pad: { width: '100%', maxWidth: 300 },
+  padRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  key: {
+    width: 80,
+    height: 80,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  keyText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 28, color: '#111827' },
+});

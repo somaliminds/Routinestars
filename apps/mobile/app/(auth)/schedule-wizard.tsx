@@ -14,7 +14,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
@@ -142,7 +144,7 @@ export default function ScheduleWizardScreen() {
 
         let minuteOffset = 0;
         for (let i = 0; i < selectedSets.length; i++) {
-          const set = selectedSets[i];
+          const set = selectedSets[i]!;
           const startHour = 8 + Math.floor(minuteOffset / 60);
           const startMin = minuteOffset % 60;
           const startTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}:00`;
@@ -173,35 +175,32 @@ export default function ScheduleWizardScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-neutral-100 items-center justify-center">
+      <View style={styles.loading}>
         <ActivityIndicator color="#7C3AED" size="large" />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-neutral-100">
-      <View className="px-5 pt-12 pb-3">
-        <View className="flex-row gap-1.5 mb-3">
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.header}>
+        <View style={styles.progressRow}>
           {[0, 1, 2, 3].map((i) => (
-            <View
-              key={i}
-              className={`h-1.5 rounded-full ${i === 3 ? 'w-6 bg-brand-primary' : 'w-3 bg-neutral-300'}`}
-            />
+            <View key={i} style={[styles.progressDot, i === 3 && styles.progressDotActive]} />
           ))}
         </View>
-        <Text className="font-inter font-bold text-neutral-900" style={{ fontSize: 24 }}>
+        <Text style={styles.title}>
           Build {child?.child_name ? `${child.child_name}'s` : 'your'} first schedule
         </Text>
-        <Text className="font-inter text-neutral-500 text-sm mt-1">
+        <Text style={styles.subtitle}>
           Select activity sets for their weekday mornings. Customise times later.
         </Text>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
         {allSets.length === 0 ? (
-          <View className="bg-white rounded-2xl p-6 items-center mt-4">
-            <Text className="font-inter text-neutral-500 text-sm text-center">
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>
               No activity sets available yet. Add sets from the Activities tab.
             </Text>
           </View>
@@ -212,27 +211,27 @@ export default function ScheduleWizardScreen() {
               <TouchableOpacity
                 key={set.set_id}
                 onPress={() => toggleSet(set.set_id)}
-                className={`flex-row items-center rounded-2xl p-4 mb-2 shadow-sm ${isSelected ? 'bg-brand-primary' : 'bg-white'}`}
+                style={[styles.setRow, isSelected && styles.setRowSelected]}
                 accessibilityLabel={`${set.set_name}, ${isSelected ? 'selected' : 'not selected'}`}
                 accessibilityState={{ selected: isSelected }}
+                activeOpacity={0.85}
               >
-                <Text className="text-2xl mr-3">{set.icon_emoji ?? '📋'}</Text>
-                <View className="flex-1">
-                  <Text
-                    className={`font-inter font-semibold text-base ${isSelected ? 'text-white' : 'text-neutral-900'}`}
-                  >
+                <Text style={styles.setIcon}>{set.icon_emoji ?? '📋'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.setName, isSelected && { color: '#FFFFFF' }]}>
                     {set.set_name}
                   </Text>
                   <Text
-                    className={`font-inter text-xs mt-0.5 ${isSelected ? 'text-white opacity-70' : 'text-neutral-400'}`}
+                    style={[
+                      styles.setDuration,
+                      isSelected && { color: 'rgba(255,255,255,0.75)' },
+                    ]}
                   >
                     {set.total_duration_mins} min
                   </Text>
                 </View>
-                <View
-                  className={`w-6 h-6 rounded-full border-2 items-center justify-center ${isSelected ? 'bg-white border-white' : 'border-neutral-300'}`}
-                >
-                  {isSelected && <Text className="text-brand-primary font-bold text-xs">✓</Text>}
+                <View style={[styles.tick, isSelected && styles.tickSelected]}>
+                  {isSelected && <Text style={styles.tickText}>✓</Text>}
                 </View>
               </TouchableOpacity>
             );
@@ -242,13 +241,14 @@ export default function ScheduleWizardScreen() {
         <TouchableOpacity
           onPress={() => void handleSave()}
           disabled={saving}
-          className="bg-brand-primary rounded-2xl py-4 items-center min-h-[60px] justify-center mt-4 shadow-sm"
+          style={styles.primaryBtn}
           accessibilityRole="button"
+          activeOpacity={0.85}
         >
           {saving ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text className="font-inter font-semibold text-white text-base">
+            <Text style={styles.primaryBtnText}>
               {selectedIds.size > 0
                 ? `Add ${selectedIds.size} set${selectedIds.size > 1 ? 's' : ''} & finish`
                 : 'Skip for now'}
@@ -258,13 +258,106 @@ export default function ScheduleWizardScreen() {
 
         <TouchableOpacity
           onPress={() => router.replace('/(parent)/dashboard')}
-          className="py-3 items-center mt-1"
+          style={styles.skip}
         >
-          <Text className="font-inter text-neutral-400 text-sm">
-            Skip — I'll set this up later
-          </Text>
+          <Text style={styles.skipText}>Skip — I'll set this up later</Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#F5F0FF' },
+  loading: {
+    flex: 1,
+    backgroundColor: '#F5F0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  progressRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  progressDot: { width: 12, height: 6, borderRadius: 4, backgroundColor: 'rgba(124,58,237,0.25)' },
+  progressDotActive: { width: 26, backgroundColor: '#7C3AED' },
+  title: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 24,
+    color: '#5B21B6',
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontFamily: 'Nunito_400Regular',
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+    marginBottom: 12,
+  },
+
+  empty: {
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
+  },
+  emptyText: {
+    fontFamily: 'Inter_400Regular',
+    color: '#6B7280',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  setRowSelected: { backgroundColor: '#7C3AED', borderColor: '#5B21B6' },
+  setIcon: { fontSize: 24, marginRight: 12 },
+  setName: { fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#111827' },
+  setDuration: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+
+  tick: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: 'rgba(124,58,237,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  tickSelected: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' },
+  tickText: { color: '#7C3AED', fontWeight: '700', fontSize: 14 },
+
+  primaryBtn: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 18,
+    paddingVertical: 16,
+    minHeight: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  primaryBtnText: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#FFFFFF' },
+
+  skip: { paddingVertical: 10, alignItems: 'center', marginTop: 4 },
+  skipText: { fontFamily: 'Inter_400Regular', color: '#9CA3AF', fontSize: 13 },
+});

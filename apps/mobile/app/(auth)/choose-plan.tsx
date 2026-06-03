@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -37,54 +38,40 @@ function PlanCard({
 }) {
   const plan = STRIPE_PLANS[planKey];
   const isFree = planKey === 'FREE';
+  const priceDisplay = 'priceDisplay' in plan ? plan.priceDisplay : 'Free';
 
   return (
     <TouchableOpacity
       onPress={onSelect}
-      className={`rounded-2xl p-5 mb-3 shadow-sm ${
-        isSelected
-          ? 'bg-brand-primary'
-          : isPopular
-            ? 'bg-white border-2 border-brand-primary'
-            : 'bg-white'
-      }`}
+      style={[
+        styles.planCard,
+        isSelected && styles.planCardSelected,
+        !isSelected && isPopular && styles.planCardPopular,
+      ]}
+      activeOpacity={0.85}
       accessibilityLabel={`Select ${plan.name} plan`}
       accessibilityState={{ selected: isSelected }}
     >
       {isPopular && !isSelected && (
-        <View className="bg-brand-primary rounded-full px-3 py-0.5 self-start mb-2">
-          <Text className="font-inter font-semibold text-white text-xs">Most Popular</Text>
+        <View style={styles.popularPill}>
+          <Text style={styles.popularPillText}>Most Popular</Text>
         </View>
       )}
 
-      <View className="flex-row items-baseline justify-between mb-1">
-        <Text
-          className={`font-inter font-bold text-lg ${isSelected ? 'text-white' : 'text-neutral-900'}`}
-        >
-          {plan.name}
-        </Text>
-        <Text
-          className={`font-inter font-bold text-2xl ${isSelected ? 'text-white' : 'text-neutral-900'}`}
-        >
-          {'priceDisplay' in plan ? plan.priceDisplay : 'Free'}
-        </Text>
+      <View style={styles.planHeader}>
+        <Text style={[styles.planName, isSelected && styles.planNameSelected]}>{plan.name}</Text>
+        <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>{priceDisplay}</Text>
       </View>
 
       {plan.features.map((f) => (
-        <View key={f} className="flex-row items-center mt-1.5">
-          <Text className={`mr-2 ${isSelected ? 'text-white' : 'text-accent-success'}`}>✓</Text>
-          <Text
-            className={`font-inter text-sm ${isSelected ? 'text-white opacity-90' : 'text-neutral-600'}`}
-          >
-            {f}
-          </Text>
+        <View key={f} style={styles.featureRow}>
+          <Text style={[styles.featureTick, isSelected && styles.featureTickSelected]}>✓</Text>
+          <Text style={[styles.featureText, isSelected && styles.featureTextSelected]}>{f}</Text>
         </View>
       ))}
 
       {isFree && (
-        <Text
-          className={`font-inter text-xs mt-2 ${isSelected ? 'text-white opacity-70' : 'text-neutral-400'}`}
-        >
+        <Text style={[styles.noCard, isSelected && styles.noCardSelected]}>
           No credit card required
         </Text>
       )}
@@ -114,48 +101,30 @@ export default function ChoosePlanScreen() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          userId,
-          priceId: plan.stripePriceId,
-          successUrl: 'routinestars://onboarding/success',
-          cancelUrl: 'routinestars://auth/choose-plan',
-        },
+        body: { userId, priceId: plan.stripePriceId },
       });
 
       if (error || !(data as { url?: string })?.url) {
         Alert.alert('Error', 'Could not start checkout. Please try again.');
         return;
       }
-
       await Linking.openURL((data as { url: string }).url);
-      // After returning from Stripe, proceed to schedule wizard
-      setTimeout(() => {
-        router.replace('/(auth)/schedule-wizard');
-      }, 2000);
+      setTimeout(() => router.replace('/(auth)/schedule-wizard'), 2000);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100">
-      <View className="px-5 pt-6 pb-3">
-        <View className="flex-row items-center mb-1">
-          <View className="flex-row gap-1.5">
-            {[0, 1, 2, 3].map((i) => (
-              <View
-                key={i}
-                className={`h-1.5 rounded-full ${i === 2 ? 'w-6 bg-brand-primary' : 'w-3 bg-neutral-300'}`}
-              />
-            ))}
-          </View>
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.header}>
+        <View style={styles.progressRow}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={[styles.progressDot, i === 2 && styles.progressDotActive]} />
+          ))}
         </View>
-        <Text className="font-inter font-bold text-neutral-900 mt-3" style={{ fontSize: 24 }}>
-          Choose your plan
-        </Text>
-        <Text className="font-inter text-neutral-500 text-sm mt-1">
-          Start free, upgrade anytime. Cancel whenever you like.
-        </Text>
+        <Text style={styles.title}>Choose your plan</Text>
+        <Text style={styles.subtitle}>Start free, upgrade anytime. Cancel whenever you like.</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
@@ -172,23 +141,122 @@ export default function ChoosePlanScreen() {
         <TouchableOpacity
           onPress={() => void handleContinue()}
           disabled={loading}
-          className="bg-brand-primary rounded-2xl py-4 items-center min-h-[60px] justify-center mt-2 shadow-sm"
+          style={styles.continueBtn}
           accessibilityLabel="Continue with selected plan"
           accessibilityRole="button"
+          activeOpacity={0.85}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text className="font-inter font-semibold text-white text-base">
-              {selectedPlan === 'FREE' ? 'Continue for free' : `Start ${STRIPE_PLANS[selectedPlan].name}`}
+            <Text style={styles.continueBtnText}>
+              {selectedPlan === 'FREE'
+                ? 'Continue for free'
+                : `Start ${STRIPE_PLANS[selectedPlan].name}`}
             </Text>
           )}
         </TouchableOpacity>
 
-        <Text className="font-inter text-neutral-400 text-xs text-center mt-3 px-4">
+        <Text style={styles.footnote}>
           Paid plans billed monthly. Cancel anytime from the billing portal. Prices in GBP.
         </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#F5F0FF' },
+  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  progressRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  progressDot: { width: 12, height: 6, borderRadius: 4, backgroundColor: 'rgba(124,58,237,0.25)' },
+  progressDotActive: { width: 26, backgroundColor: '#7C3AED' },
+  title: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 26,
+    color: '#5B21B6',
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontFamily: 'Nunito_400Regular',
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+
+  planCard: {
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  planCardSelected: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#5B21B6',
+    shadowOpacity: 0.3,
+  },
+  planCardPopular: { borderColor: '#7C3AED', borderWidth: 2 },
+
+  popularPill: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  popularPillText: { fontFamily: 'Inter_600SemiBold', color: '#fff', fontSize: 11 },
+
+  planHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 6,
+  },
+  planName: { fontFamily: 'Nunito_700Bold', fontSize: 18, color: '#111827' },
+  planNameSelected: { color: '#FFFFFF' },
+  planPrice: { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: '#111827' },
+  planPriceSelected: { color: '#FFFFFF' },
+
+  featureRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 6 },
+  featureTick: { color: '#10B981', marginRight: 8, fontSize: 14, fontWeight: '700' },
+  featureTickSelected: { color: '#FFFFFF' },
+  featureText: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#374151', flex: 1 },
+  featureTextSelected: { color: 'rgba(255,255,255,0.92)' },
+
+  noCard: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#9CA3AF', marginTop: 8 },
+  noCardSelected: { color: 'rgba(255,255,255,0.75)' },
+
+  continueBtn: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 18,
+    paddingVertical: 16,
+    minHeight: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  continueBtnText: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#FFFFFF' },
+
+  footnote: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 12,
+    paddingHorizontal: 16,
+  },
+});
