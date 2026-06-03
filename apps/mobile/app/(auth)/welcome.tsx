@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -15,9 +15,14 @@ export default function WelcomeScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.content}>
-        {/* Brand mark */}
+        {/* Brand mark — real logo, not the system emoji */}
         <View style={styles.brand}>
-          <Text style={styles.star}>🌟</Text>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.logoMark}
+            resizeMode="contain"
+            accessibilityLabel="RoutineStars logo"
+          />
           <Text style={styles.brandName}>RoutineStars</Text>
           <Text style={styles.tagline}>Building independence, one star at a time</Text>
         </View>
@@ -86,9 +91,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 36,
   },
-  star: {
-    fontSize: 64,
-    lineHeight: 70,
+  logoMark: {
+    width: 140,
+    height: 140,
   },
   brandName: {
     fontFamily: 'Nunito_800ExtraBold',

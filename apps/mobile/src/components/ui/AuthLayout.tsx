@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  Image,
   type TextInputProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -67,7 +68,12 @@ export function AuthLayout({
         >
           {brand && (
             <View style={styles.brand}>
-              <Text style={styles.brandStar}>🌟</Text>
+              <Image
+                source={require('../../../assets/icon.png')}
+                style={styles.brandLogo}
+                resizeMode="contain"
+                accessibilityLabel="RoutineStars logo"
+              />
               <Text style={styles.brandName}>RoutineStars</Text>
             </View>
           )}
@@ -201,7 +207,7 @@ const styles = StyleSheet.create({
   scrollCentered: { justifyContent: 'center' },
 
   brand: { alignItems: 'center', marginBottom: 16 },
-  brandStar: { fontSize: 40, lineHeight: 44 },
+  brandLogo: { width: 80, height: 80 },
   brandName: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 22,
