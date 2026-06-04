@@ -105,9 +105,11 @@ const styles = StyleSheet.create({
   tagline: {
     fontFamily: 'Nunito_400Regular',
     fontSize: 16,
+    lineHeight: 22,
     color: '#6B7280',
     marginTop: 8,
     textAlign: 'center',
+    maxWidth: 280, // optimal reading line length 45-75 chars
   },
   card: {
     backgroundColor: 'rgba(255,255,255,0.85)',
