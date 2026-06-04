@@ -35,8 +35,17 @@ CREATE INDEX idx_emotional_checkins_child_date
 ALTER TABLE public.emotional_checkins ENABLE ROW LEVEL SECURITY;
 
 -- Parents: full access to their own children's check-ins.
+-- Inlined EXISTS rather than public.is_parent_of() so this migration can
+-- be applied even if migration 002 hasn't run yet (or its helper function
+-- got dropped). Matches the pattern used by migrations 014 and 018.
 CREATE POLICY "emotional_checkins_parent_all" ON public.emotional_checkins
-  FOR ALL USING (public.is_parent_of(child_id));
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.child_profiles
+      WHERE profile_id = emotional_checkins.child_id
+      AND parent_id = auth.uid()
+    )
+  );
 
 -- Children: can insert and read their own check-ins.
 CREATE POLICY "emotional_checkins_child_insert" ON public.emotional_checkins
