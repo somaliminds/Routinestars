@@ -26,7 +26,13 @@ LAVENDER_BG = (245, 240, 255)  # #F5F0FF  soft lavender (matches app bg)
 BRAND_PURPLE = (124, 58, 237)  # #7C3AED  brand-primary (for splash if desired)
 
 ICON_SIZE = 1024
-SAFE_ZONE = 0.66  # Android adaptive icon safe zone is ~66% of canvas
+# Android adaptive icon visible mask varies per launcher (Pixel = circle,
+# Samsung One UI = squircle). Keeping content inside ~58% leaves enough
+# margin for every shape without the figures touching the edge.
+SAFE_ZONE = 0.58
+# iOS rounded-square mask cuts ~10% on the corners. 0.65 keeps the logo
+# comfortably inside without dead space.
+IOS_SCALE = 0.65
 
 
 def load_master_logo_transparent() -> Image.Image:
@@ -94,9 +100,9 @@ def main() -> None:
 
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    # 1. icon.png — iOS / Expo master. Solid lavender bg, logo at 75% scale.
+    # 1. icon.png — iOS / Expo master. Solid lavender bg, logo at IOS_SCALE.
     canvas = make_square_canvas(ICON_SIZE, LAVENDER_BG)
-    icon = paste_logo_centred(canvas, logo, scale=0.78)
+    icon = paste_logo_centred(canvas, logo, scale=IOS_SCALE)
     out = os.path.join(OUT_DIR, 'icon.png')
     icon.save(out, 'PNG', optimize=True)
     print(f'  Wrote {out}')
