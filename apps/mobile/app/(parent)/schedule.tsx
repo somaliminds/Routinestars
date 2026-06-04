@@ -34,6 +34,7 @@ import {
   type ScheduledSetDetail,
 } from '@/hooks/useWeekSchedule';
 import type { ActivitySetRow } from '@/types/database';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -331,7 +332,7 @@ function AddActivityModal({
           Choose Activity
         </Text>
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 128 }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: r.scrollClearance + 72 }}>
           {activitySets.map((set) => {
             const active = selectedSet?.set_id === set.set_id;
             return (
@@ -373,6 +374,7 @@ export default function ScheduleScreen() {
   const userId = session?.user.id ?? '';
   const { activeChild } = useParentStore();
   const childId = activeChild?.profile_id ?? null;
+  const r = useResponsive();
 
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [activeDayIdx, setActiveDayIdx] = useState(() => {
@@ -538,16 +540,38 @@ export default function ScheduleScreen() {
         </ScrollView>
       )}
 
-      {/* Add button */}
-      <View className="px-5 pb-6 pt-3 absolute bottom-0 left-0 right-0">
+      {/* Floating "Add Activity" CTA — sits ABOVE the floating tab bar */}
+      <View
+        style={{
+          position: 'absolute',
+          left: 16,
+          right: 16,
+          bottom: r.scrollClearance - 12,
+          paddingTop: 8,
+        }}
+        pointerEvents="box-none"
+      >
         <TouchableOpacity
-          className="bg-brand-primary rounded-2xl items-center justify-center shadow-lg"
-          style={{ height: 56 }}
+          style={{
+            height: 56,
+            borderRadius: 18,
+            backgroundColor: '#7C3AED',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#5B21B6',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.28,
+            shadowRadius: 16,
+            elevation: 8,
+          }}
           onPress={() => setAddModalVisible(true)}
           accessibilityLabel="Add activity"
           accessibilityRole="button"
+          activeOpacity={0.85}
         >
-          <Text className="font-inter font-semibold text-white text-base">+ Add Activity</Text>
+          <Text style={{ fontFamily: 'Inter_600SemiBold', color: '#FFFFFF', fontSize: 16 }}>
+            + Add Activity
+          </Text>
         </TouchableOpacity>
       </View>
 
