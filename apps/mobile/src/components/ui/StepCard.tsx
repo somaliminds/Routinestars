@@ -191,18 +191,19 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   tickButton: {
-    height: 88,
-    borderRadius: 28,
+    height: 80, // 4dp grid (was 88)
+    borderRadius: 24,
     backgroundColor: '#10B981',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 10,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    // Shadow matches surface colour, not darker — physically correct light
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.30,
+    shadowRadius: 16,
+    elevation: 8,
   },
   tickEmoji: { fontSize: 36 },
   tickLabel: {

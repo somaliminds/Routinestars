@@ -140,13 +140,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   badge: {
-    borderRadius: 20,
+    borderRadius: 999, // true pill, not 20px rounded square
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,  // was 6 — proportional to text (1.6× rule)
     marginLeft: 8,
   },
   badgeText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold', // Inter > Nunito for small-size legibility
+    fontSize: 12,
+    letterSpacing: 0.2,
   },
 });
