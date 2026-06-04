@@ -110,6 +110,13 @@ function AuthGuard() {
     const inParentGroup = segments[0] === '(parent)';
     const currentRoute = segments[1] as string | undefined;
 
+    // Routes the guard must NOT touch:
+    //  - public legal pages reachable signed-in OR signed-out
+    //  - auth/callback: handles the Supabase OAuth handshake itself, the
+    //    guard would race it and bounce the user to welcome before tokens land
+    const PUBLIC_ROUTES = new Set(['privacy-policy', 'terms', 'auth']);
+    if (PUBLIC_ROUTES.has(segments[0] as string)) return;
+
     // These (auth) routes must remain reachable WHILE signed in.
     const AUTH_GROUP_WHITELIST = new Set([
       'forgot-pin',
