@@ -107,7 +107,19 @@ async function fetchCareTeam(parentId: string, childId: string): Promise<CareTea
 // ── Section header ────────────────────────────────────────────────────────────
 function SectionHeader({ title }: { title: string }) {
   return (
-    <Text className="font-inter font-semibold text-neutral-700 text-xs uppercase tracking-wide mb-2 mt-6 px-1">
+    <Text
+      style={{
+        fontFamily: 'Inter_600SemiBold',
+        fontSize: 11,
+        lineHeight: 14,
+        letterSpacing: 0.8,
+        color: '#5B21B6', // brand-dark — tighter visual hierarchy than neutral-700
+        textTransform: 'uppercase',
+        marginTop: 20, // was 24 (mt-6) — closer to its section (Law of Proximity)
+        marginBottom: 8,
+        paddingHorizontal: 4,
+      }}
+    >
       {title}
     </Text>
   );
