@@ -268,10 +268,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   greeting: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 26,
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 24, // single H1 — was 26
     color: '#111827',
-    lineHeight: 34,
+    lineHeight: 32,
+    letterSpacing: -0.3,
   },
   date: {
     fontFamily: 'Nunito_400Regular',
@@ -320,7 +321,8 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: 'Nunito_700Bold',
-    fontSize: 17,
+    fontSize: 18, // H2 level — was 17, now on 4dp grid
+    lineHeight: 26,
     color: '#111827',
   },
   progressCount: {
@@ -335,11 +337,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sectionLabel: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 20,
-    color: '#111827',
-    marginBottom: 12,
-    marginTop: 4,
+    // 3rd-level type: caption-style UPPERCASE divider, not another bold header.
+    // Used by Apple Music, Spotify, Linear to separate sections without
+    // competing with the page H1.
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.8,
+    color: '#5B21B6',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginTop: 16,
   },
   allDoneBanner: {
     backgroundColor: '#FFF0C0',

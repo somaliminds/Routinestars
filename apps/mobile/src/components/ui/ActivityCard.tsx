@@ -123,9 +123,9 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   title: {
     fontFamily: 'Nunito_700Bold',
-    fontSize: 20,
+    fontSize: 18, // H2 — was 20, brings hierarchy back so page H1 dominates
     color: '#111827',
-    lineHeight: 26,
+    lineHeight: 24,
   },
   time: {
     fontFamily: 'Nunito_400Regular',
