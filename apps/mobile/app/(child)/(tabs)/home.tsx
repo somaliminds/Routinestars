@@ -22,6 +22,7 @@ import {
 } from '@/hooks/useChildSchedule';
 import type { ScheduledSetStatus } from '@/types/database';
 import { usePinGate } from '@/stores/pinGate.store';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const TAPPABLE_STATUSES: ScheduledSetStatus[] = ['PENDING', 'IN_PROGRESS', 'PAUSED'];
 
@@ -46,6 +47,7 @@ export default function ChildHomeScreen() {
   const childId = selectedChild?.profile_id ?? null;
   const today = format(new Date(), 'EEEE, d MMMM');
   const openPinGate = usePinGate((s) => s.open);
+  const r = useResponsive();
 
   const {
     data: schedule,
@@ -96,7 +98,7 @@ export default function ChildHomeScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: r.scrollClearance + 16 }]}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -228,7 +230,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 128, // clears floating tab bar (72) + offset (24) + breathing room
+    // paddingBottom set inline via useResponsive (r.scrollClearance + 16) so it
+    // adapts to Samsung software-nav insets that the static 128 didn't cover.
   },
   centred: {
     flex: 1,
