@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,20 +9,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ActivityCard } from '@/components/ui/ActivityCard';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { StarCounter } from '@/components/ui/StarCounter';
+import { ZonesCheckInModal } from '@/components/ui/ZonesCheckInModal';
 import { useChildStore } from '@/stores/child.store';
 import {
   useChildSchedule,
   useTodayStars,
   type ScheduledSetWithDetails,
 } from '@/hooks/useChildSchedule';
-import type { ScheduledSetStatus } from '@/types/database';
+import type { ScheduledSetStatus, Zone } from '@/types/database';
 import { usePinGate } from '@/stores/pinGate.store';
 import { useResponsive } from '@/hooks/useResponsive';
+import { supabase } from '@/lib/supabase';
 
 const TAPPABLE_STATUSES: ScheduledSetStatus[] = ['PENDING', 'IN_PROGRESS', 'PAUSED'];
 
@@ -92,6 +94,56 @@ export default function ChildHomeScreen() {
   const firstThenSlice = firstThenMode
     ? pickFirstThenSlice(schedule?.scheduledSets ?? [])
     : { first: null, then: null };
+
+  // ── Zones of Regulation check-in ──
+  // Prompt at the start of the day if the child hasn't logged a feeling
+  // yet. Persist suppression in component state so a skip doesn't re-pop
+  // on every render until the next app launch.
+  const todayIso = format(new Date(), 'yyyy-MM-dd');
+  const { data: hasCheckedInToday } = useQuery({
+    queryKey: ['zones-checkin-today', childId, todayIso],
+    queryFn: async () => {
+      if (!childId) return false;
+      const { count } = await supabase
+        .from('emotional_checkins')
+        .select('checkin_id', { count: 'exact', head: true })
+        .eq('child_id', childId)
+        .gte('occurred_at', `${todayIso}T00:00:00`)
+        .lte('occurred_at', `${todayIso}T23:59:59`);
+      return (count ?? 0) > 0;
+    },
+    enabled: !!childId,
+    staleTime: 60_000,
+  });
+  const [zonesSuppressed, setZonesSuppressed] = useState(false);
+  const [zonesVisible, setZonesVisible] = useState(false);
+  useEffect(() => {
+    if (childId && hasCheckedInToday === false && !zonesSuppressed) {
+      setZonesVisible(true);
+    }
+  }, [childId, hasCheckedInToday, zonesSuppressed]);
+
+  const handleZoneSelect = useCallback(
+    async (zone: Zone, context: string) => {
+      if (!childId) return;
+      setZonesVisible(false);
+      setZonesSuppressed(true);
+      await supabase.from('emotional_checkins').insert({
+        child_id: childId,
+        zone,
+        context,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ['zones-checkin-today', childId, todayIso],
+      });
+    },
+    [childId, queryClient, todayIso],
+  );
+
+  const handleZoneSkip = useCallback(() => {
+    setZonesVisible(false);
+    setZonesSuppressed(true);
+  }, []);
 
   const handleCardPress = useCallback(
     (set: ScheduledSetWithDetails) => {
@@ -288,6 +340,15 @@ export default function ChildHomeScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      {/* Zones of Regulation check-in — shown at start of day if not done */}
+      <ZonesCheckInModal
+        visible={zonesVisible}
+        childName={selectedChild.child_name}
+        context="start_of_day"
+        onSelect={handleZoneSelect}
+        onSkip={handleZoneSkip}
+      />
     </View>
   );
 }

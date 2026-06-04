@@ -397,6 +397,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      emotional_checkins: {
+        Row: {
+          checkin_id: string;
+          child_id: string;
+          zone: 'BLUE' | 'GREEN' | 'YELLOW' | 'RED';
+          context: string | null;
+          occurred_at: string;
+          created_at: string;
+        };
+        Insert: {
+          checkin_id?: string;
+          child_id: string;
+          zone: 'BLUE' | 'GREEN' | 'YELLOW' | 'RED';
+          context?: string | null;
+          occurred_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          zone?: 'BLUE' | 'GREEN' | 'YELLOW' | 'RED';
+          context?: string | null;
+          occurred_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -426,6 +450,8 @@ export type LockoutEventRow = Database['public']['Tables']['lockout_events']['Ro
 export type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 export type CareTeamMemberRow = Database['public']['Tables']['care_team_members']['Row'];
 export type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row'];
+export type EmotionalCheckinRow = Database['public']['Tables']['emotional_checkins']['Row'];
+export type Zone = EmotionalCheckinRow['zone'];
 
 export type ScheduledSetStatus =
   | 'PENDING'

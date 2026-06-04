@@ -24,6 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format, subDays, startOfWeek, addDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useParentStore } from '@/stores/parent.store';
+import type { Zone } from '@/types/database';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface DailyRate {
@@ -47,6 +48,7 @@ interface ReportsData {
   currentStreak: number;
   longestStreak: number;
   totalStars: number;
+  zones7d: { date: string; zone: Zone | null }[];
 }
 
 const REWARD_EMOJI: Record<string, string> = {
@@ -145,12 +147,35 @@ async function fetchReports(childId: string): Promise<ReportsData> {
     }
   }
 
+  // ── Zones of Regulation — last 7 days, child's most recent check-in per day
+  const sevenDaysAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
+  const { data: zoneRows } = await supabase
+    .from('emotional_checkins')
+    .select('zone, occurred_at')
+    .eq('child_id', childId)
+    .gte('occurred_at', `${sevenDaysAgo}T00:00:00`)
+    .order('occurred_at', { ascending: false });
+
+  // Take the FIRST row seen per day (which is the most-recent because we
+  // ordered DESC). Multiple check-ins per day are common; the latest one
+  // reflects how the day ended up.
+  const zoneByDate = new Map<string, Zone>();
+  for (const r of zoneRows ?? []) {
+    const day = (r.occurred_at as string).slice(0, 10);
+    if (!zoneByDate.has(day)) zoneByDate.set(day, r.zone as Zone);
+  }
+  const zones7d = Array.from({ length: 7 }).map((_, i) => {
+    const date = format(subDays(new Date(), 6 - i), 'yyyy-MM-dd');
+    return { date, zone: zoneByDate.get(date) ?? null };
+  });
+
   return {
     dailyRates,
     earnedBadges,
     currentStreak: profile?.current_streak ?? 0,
     longestStreak: longest,
     totalStars: profile?.total_stars ?? 0,
+    zones7d,
   };
 }
 
@@ -408,10 +433,67 @@ export default function ReportsScreen() {
           </View>
         </View>
 
+        <ZonesStrip days={data.zones7d} />
         <CompletionChart days={data.dailyRates} />
         <WeeklyHeatmap days={data.dailyRates} />
         <BadgeTimeline badges={data.earnedBadges} />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// ── Zones of Regulation 7-day strip ──────────────────────────────────────────
+const ZONE_BG: Record<Zone, string> = {
+  BLUE: '#BFDBFE',
+  GREEN: '#BBF7D0',
+  YELLOW: '#FEF08A',
+  RED: '#FECACA',
+};
+const ZONE_EMOJI: Record<Zone, string> = {
+  BLUE: '😴',
+  GREEN: '🙂',
+  YELLOW: '😬',
+  RED: '😡',
+};
+
+function ZonesStrip({ days }: { days: { date: string; zone: Zone | null }[] }) {
+  const hasAny = days.some((d) => d.zone !== null);
+
+  return (
+    <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+      <Text className="font-inter font-semibold text-neutral-900 text-base mb-1">
+        Feelings (last 7 days)
+      </Text>
+      <Text className="font-inter text-neutral-500 text-xs mb-3">
+        How they ended each day, based on their own check-in.
+      </Text>
+      {!hasAny ? (
+        <Text className="font-inter text-neutral-400 text-xs text-center py-4">
+          No check-ins yet this week.
+        </Text>
+      ) : (
+        <View className="flex-row justify-between">
+          {days.map((d) => (
+            <View key={d.date} className="items-center" style={{ flex: 1 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: d.zone ? ZONE_BG[d.zone] : '#F3F4F6',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 18 }}>{d.zone ? ZONE_EMOJI[d.zone] : ''}</Text>
+              </View>
+              <Text className="font-inter text-neutral-400 text-[10px] mt-1">
+                {format(new Date(d.date), 'EEEEE')}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
   );
 }

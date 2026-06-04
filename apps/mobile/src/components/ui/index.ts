@@ -2,6 +2,7 @@ export { ActivityCard } from './ActivityCard';
 export { StepCard } from './StepCard';
 export { ProgressBar } from './ProgressBar';
 export { TimeTimerWedge } from './TimeTimerWedge';
+export { ZonesCheckInModal } from './ZonesCheckInModal';
 export { StarCounter } from './StarCounter';
 export { BadgeDisplay } from './BadgeDisplay';
 export { ApprovalScreen } from './ApprovalScreen';
