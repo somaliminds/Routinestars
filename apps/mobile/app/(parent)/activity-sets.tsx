@@ -29,6 +29,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useSubscriptionStore, canAddCustomSet } from '@/stores/subscription.store';
 import { supabase } from '@/lib/supabase';
 import type { ActivitySetRow, StepRow } from '@/types/database';
+import { useResponsive } from '@/hooks/useResponsive';
 
 // ── Zod Schemas ──────────────────────────────────────────────────────────────
 const stepSchema = z.object({
@@ -678,6 +679,7 @@ export default function ActivitySetsScreen() {
   const subscription = useSubscriptionStore((s) => s.subscription);
   const canCreateCustom = canAddCustomSet(subscription);
   const queryClient = useQueryClient();
+  const r = useResponsive();
 
   const [selectedItem, setSelectedItem] = useState<{
     set: ActivitySetRow;
@@ -718,7 +720,7 @@ export default function ActivitySetsScreen() {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: r.scrollClearance + 72 }}>
         {/* Custom sets */}
         {customSets.length > 0 && (
           <>
@@ -777,8 +779,16 @@ export default function ActivitySetsScreen() {
         ))}
       </ScrollView>
 
-      {/* Create button */}
-      <View className="px-5 pb-6 pt-3 absolute bottom-0 left-0 right-0">
+      {/* Create button — lifted above the floating tab bar via useResponsive
+          so it never sits underneath the nav pill on Samsung/software-nav devices. */}
+      <View
+        style={{
+          position: 'absolute',
+          left: 20,
+          right: 20,
+          bottom: r.tabBarBottom + r.tabBarHeight + 8,
+        }}
+      >
         <TouchableOpacity
           className={`rounded-2xl items-center justify-center shadow-lg ${canCreateCustom ? 'bg-brand-primary' : 'bg-neutral-300'}`}
           style={{ height: 56 }}
