@@ -47,6 +47,7 @@ interface ChildProfile {
 interface ParentPrefs {
   notify_on_completion: boolean;
   notify_on_request: boolean;
+  notify_transition_warnings: boolean;
 }
 
 interface CareTeamMember {
@@ -87,12 +88,18 @@ async function fetchChildren(parentId: string): Promise<ChildProfile[]> {
 async function fetchPrefs(userId: string): Promise<ParentPrefs> {
   const { data, error } = await supabase
     .from('parent_profiles')
-    .select('notify_on_completion, notify_on_request')
+    .select('notify_on_completion, notify_on_request, notify_transition_warnings')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw error;
   // Return defaults if parent_profiles row not yet created (PIN setup skipped)
-  return data ?? { notify_on_completion: true, notify_on_request: true };
+  return (
+    data ?? {
+      notify_on_completion: true,
+      notify_on_request: true,
+      notify_transition_warnings: true,
+    }
+  );
 }
 
 async function fetchCareTeam(parentId: string, childId: string): Promise<CareTeamMember[]> {
@@ -596,7 +603,10 @@ function NotificationsSection({ userId }: { userId: string }) {
     enabled: !!userId,
   });
 
-  const toggle = (field: 'notify_on_completion' | 'notify_on_request', value: boolean) => {
+  const toggle = (
+    field: 'notify_on_completion' | 'notify_on_request' | 'notify_transition_warnings',
+    value: boolean,
+  ) => {
     void supabase
       .from('parent_profiles')
       .update({ [field]: value })
@@ -617,6 +627,11 @@ function NotificationsSection({ userId }: { userId: string }) {
       label: 'Approval requested',
       sub: 'Notify when child requests approval',
     },
+    {
+      field: 'notify_transition_warnings' as const,
+      label: 'Transition warnings',
+      sub: '5- and 1-minute heads-up before each activity',
+    },
   ];
 
   return (
@@ -624,7 +639,7 @@ function NotificationsSection({ userId }: { userId: string }) {
       {rows.map(({ field, label, sub }, idx) => (
         <View
           key={field}
-          className={`flex-row items-center px-5 py-4 ${idx === 0 ? 'border-b border-neutral-100' : ''}`}
+          className={`flex-row items-center px-5 py-4 ${idx < rows.length - 1 ? 'border-b border-neutral-100' : ''}`}
         >
           <View className="flex-1 mr-4">
             <Text className="font-inter font-semibold text-neutral-900 text-sm">{label}</Text>

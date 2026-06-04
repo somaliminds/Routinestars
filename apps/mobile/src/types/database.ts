@@ -70,6 +70,7 @@ export type Database = {
           pin_hash: string;
           notify_on_completion: boolean;
           notify_on_request: boolean;
+          notify_transition_warnings: boolean;
           expo_push_token: string | null;
         };
         Insert: {
@@ -78,12 +79,14 @@ export type Database = {
           pin_hash: string;
           notify_on_completion?: boolean;
           notify_on_request?: boolean;
+          notify_transition_warnings?: boolean;
           expo_push_token?: string | null;
         };
         Update: {
           pin_hash?: string;
           notify_on_completion?: boolean;
           notify_on_request?: boolean;
+          notify_transition_warnings?: boolean;
           expo_push_token?: string | null;
         };
         Relationships: [];
