@@ -332,7 +332,7 @@ function AddActivityModal({
           Choose Activity
         </Text>
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: r.scrollClearance + 72 }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 128 }}>
           {activitySets.map((set) => {
             const active = selectedSet?.set_id === set.set_id;
             return (
@@ -517,7 +517,7 @@ export default function ScheduleScreen() {
           <ActivityIndicator color="#7C3AED" />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: r.scrollClearance + 72 }}>
           {activeDay && activeDay.sets.length === 0 ? (
             <View className="items-center py-12">
               <Text className="text-[40px] mb-3">📅</Text>
