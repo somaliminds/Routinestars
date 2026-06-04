@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { ProgressBar } from './ProgressBar';
+import { TimeTimerWedge } from './TimeTimerWedge';
 
 interface StepCardProps {
   stepNumber: number;
@@ -76,8 +77,13 @@ export function StepCard({
         <Text style={styles.stepTitle}>{title}</Text>
         <Text style={styles.stepInstruction}>{instructionText}</Text>
 
-        {/* Timer — informational only, amber when overtime (not red) */}
-        <View style={styles.timerContainer}>
+        {/* Timer — visual Time Timer wedge alongside the digital readout.
+            The wedge is the dominant indicator (SEN-classroom standard);
+            the digital text supports children who can read numbers; the
+            linear bar underneath reinforces both for users with low
+            vision or who prefer linear progress cues. */}
+        <View style={styles.timerRow}>
+          <TimeTimerWedge progress={progress} isOvertime={isOvertime} size={80} />
           <Text style={[styles.timerText, isOvertime && styles.timerOvertime]}>
             {isOvertime
               ? `+${formatTime(elapsedSeconds - durationSeconds)}`
@@ -175,12 +181,17 @@ const styles = StyleSheet.create({
   },
   timerText: {
     fontFamily: 'Nunito_700Bold',
-    fontSize: 22,
+    fontSize: 28, // larger now that the wedge sits beside it — pair reads as one unit
     color: '#6B7280',
   },
-  timerContainer: {
+  timerRow: {
+    // Wedge + digital readout sit side by side, mirroring the physical
+    // Time Timer device. Centred so the pair feels like a single object.
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 12,
   },
   timerOvertime: {
     color: '#D97706', // amber — not red, avoids anxiety
