@@ -301,24 +301,37 @@ export default function DashboardScreen() {
           <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor="#7C3AED" />
         }
       >
-        {/* Pending approvals banner */}
+        {/* Pending approvals banner — lavender (calm), not amber (urgent) */}
         {pendingApprovals.length > 0 && (
           <TouchableOpacity
-            className="bg-accent-warning/10 border border-accent-warning/30 rounded-2xl p-4 mb-4 flex-row items-center"
+            style={{
+              backgroundColor: 'rgba(124,58,237,0.08)',
+              borderColor:     'rgba(124,58,237,0.25)',
+              borderWidth: 1,
+              borderRadius: 18,
+              padding: 16,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              minHeight: 64,
+            }}
             onPress={() => router.push(`/(parent)/approve/${pendingApprovals[0]!.completionId}`)}
             accessibilityRole="button"
+            accessibilityLabel={`Review ${pendingApprovals.length} pending approval${pendingApprovals.length === 1 ? '' : 's'}`}
+            activeOpacity={0.85}
           >
-            <Text style={{ fontSize: 26 }} className="mr-3">
-              🔔
-            </Text>
-            <View className="flex-1">
-              <Text className="font-inter font-semibold text-neutral-900 text-sm">
+            <Text style={{ fontSize: 22 }}>⏳</Text>
+            <View style={{ flex: 1 }}>
+              <Text className="font-inter font-semibold text-neutral-900 text-sm" numberOfLines={1}>
                 {pendingApprovals.length}{' '}
                 {pendingApprovals.length === 1 ? 'activity needs' : 'activities need'} your approval
               </Text>
-              <Text className="font-inter text-neutral-500 text-xs mt-0.5">Tap to review</Text>
+              <Text className="font-inter text-neutral-500 text-xs mt-0.5" numberOfLines={1}>
+                Tap to review
+              </Text>
             </View>
-            <Text className="font-inter text-neutral-400 text-lg">›</Text>
+            <Text style={{ fontFamily: 'Inter_400Regular', color: '#7C3AED', fontSize: 22 }}>›</Text>
           </TouchableOpacity>
         )}
 
