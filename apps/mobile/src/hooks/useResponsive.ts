@@ -37,7 +37,9 @@ export function useResponsive(): ResponsiveMetrics {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isTablet = width >= 600;
-  const isPhoneSmall = width < 380;
+  // Galaxy A0x / Redmi 9A / Pixel 4a are 380-400dp wide and need
+  // compact treatment to avoid label truncation on 6-tab parent nav.
+  const isPhoneSmall = width < 400;
   const isPhone = !isTablet;
 
   // On tablets, cap the tab bar width and centre it; on phones, use tight margins

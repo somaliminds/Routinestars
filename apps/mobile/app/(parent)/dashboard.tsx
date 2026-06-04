@@ -263,12 +263,24 @@ export default function DashboardScreen() {
         </View>
         <TouchableOpacity
           onPress={() => router.push('/(child)/select-profile')}
-          className="bg-brand-light border border-brand-primary/30 rounded-xl px-3 py-2 flex-row items-center"
+          style={{
+            minHeight: 44,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderRadius: 18,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            backgroundColor: 'rgba(124,58,237,0.10)',
+            borderWidth: 1,
+            borderColor: 'rgba(124,58,237,0.30)',
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityLabel="Launch child app"
           accessibilityRole="button"
         >
-          <Text style={{ fontSize: 16 }} className="mr-1">👦</Text>
-          <Text className="font-inter font-semibold text-brand-primary text-xs">Child App</Text>
+          <Text style={{ fontSize: 16 }}>👦</Text>
+          <Text className="font-inter font-semibold text-brand-primary text-sm">Child App</Text>
         </TouchableOpacity>
       </View>
 
