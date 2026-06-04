@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -11,10 +11,14 @@ export default function WelcomeScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" />
 
-      <View style={styles.content}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Brand mark — real logo, not the system emoji */}
         <View style={styles.brand}>
           <Image
@@ -41,10 +45,11 @@ export default function WelcomeScreen() {
             </View>
           ))}
         </View>
-      </View>
+      </ScrollView>
 
-      {/* CTA buttons */}
-      <View style={styles.footer}>
+      {/* CTA buttons — own SafeArea so bottom inset is respected after ScrollView */}
+      <SafeAreaView edges={['bottom']} style={styles.footerSafe}>
+        <View style={styles.footer}>
         <TouchableOpacity
           onPress={() => router.push('/(auth)/signup')}
           style={styles.primaryBtn}
@@ -71,7 +76,8 @@ export default function WelcomeScreen() {
         >
           <Text style={styles.privacyLinkText}>Privacy Policy</Text>
         </TouchableOpacity>
-      </View>
+        </View>
+      </SafeAreaView>
     </SafeAreaView>
   );
 }
@@ -81,15 +87,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F0FF',
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 32, // guarantees space between feature card and CTA footer
   },
   brand: {
     alignItems: 'center',
-    marginBottom: 36,
+    marginBottom: 32,
   },
   logoMark: {
     width: 140,
@@ -141,9 +149,17 @@ const styles = StyleSheet.create({
     color: '#374151',
     flex: 1,
   },
+  footerSafe: {
+    // Visual separator from scrollable content above so the CTA never feels
+    // glued to the feature card on shorter devices.
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(124, 58, 237, 0.08)',
+    backgroundColor: '#F5F0FF',
+  },
   footer: {
     paddingHorizontal: 24,
-    paddingBottom: 28,
+    paddingTop: 16,
+    paddingBottom: 12,
     gap: 12,
   },
   primaryBtn: {
