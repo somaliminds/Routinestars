@@ -58,7 +58,7 @@ export default function SignupScreen() {
   const onSubmit = async (data: SignupForm) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data: result, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
@@ -67,7 +67,32 @@ export default function SignupScreen() {
         },
       });
 
+      // Supabase quirk: when the email is already registered (e.g. via Google),
+      // signUp returns success with no error but identities is empty and no
+      // verification email is sent. We must surface this ourselves or the user
+      // will sit on verify-email waiting for a code that never arrives.
+      const alreadyRegistered =
+        !error && result.user && (result.user.identities?.length ?? 0) === 0;
+
+      if (alreadyRegistered) {
+        Alert.alert(
+          'Account already exists',
+          'This email is already registered. Please sign in instead — if you signed up with Google, use the Google button on the sign-in screen.',
+          [{ text: 'Go to sign in', onPress: () => router.replace('/(auth)/login') }],
+        );
+        return;
+      }
+
       if (error) {
+        // Some Supabase versions raise an explicit error instead of the
+        // empty-identities pattern above. Catch the common variants.
+        const msg = error.message.toLowerCase();
+        if (msg.includes('already registered') || msg.includes('already exists')) {
+          Alert.alert('Account already exists', 'Please sign in instead.', [
+            { text: 'Go to sign in', onPress: () => router.replace('/(auth)/login') },
+          ]);
+          return;
+        }
         Alert.alert('Sign Up Failed', 'Please check your details and try again.');
         return;
       }
