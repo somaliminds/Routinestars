@@ -32,6 +32,35 @@ function computeDayProgress(sets: ScheduledSetWithDetails[]): number {
   return done / sets.length;
 }
 
+interface FirstThenSlice {
+  first: { set: ScheduledSetWithDetails; originalIndex: number } | null;
+  then: { set: ScheduledSetWithDetails; originalIndex: number } | null;
+}
+
+/**
+ * First-Then mode: pick the "right now" card and a preview of what's next.
+ *  - first: the in-progress / paused set, or the earliest not-yet-done set
+ *  - then:  the next not-yet-done set after first
+ * Done sets (APPROVED / LOCKED / SKIPPED) are skipped over so the child
+ * never sees finished items in the slice.
+ */
+function pickFirstThenSlice(sets: ScheduledSetWithDetails[]): FirstThenSlice {
+  const indexed = sets.map((set, originalIndex) => ({ set, originalIndex }));
+  const remaining = indexed.filter(
+    ({ set }) => set.status !== 'APPROVED' && set.status !== 'LOCKED' && set.status !== 'SKIPPED',
+  );
+  if (remaining.length === 0) return { first: null, then: null };
+
+  const inFlightIdx = remaining.findIndex(
+    ({ set }) => set.status === 'IN_PROGRESS' || set.status === 'PAUSED',
+  );
+  const firstIdx = inFlightIdx >= 0 ? inFlightIdx : 0;
+  return {
+    first: remaining[firstIdx] ?? null,
+    then: remaining[firstIdx + 1] ?? null,
+  };
+}
+
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
@@ -59,6 +88,10 @@ export default function ChildHomeScreen() {
 
   const { data: todayStars = 0 } = useTodayStars(childId);
   const dayProgress = computeDayProgress(schedule?.scheduledSets ?? []);
+  const firstThenMode = selectedChild?.first_then_mode ?? false;
+  const firstThenSlice = firstThenMode
+    ? pickFirstThenSlice(schedule?.scheduledSets ?? [])
+    : { first: null, then: null };
 
   const handleCardPress = useCallback(
     (set: ScheduledSetWithDetails) => {
@@ -170,11 +203,11 @@ export default function ChildHomeScreen() {
           )}
 
           {/* ── Activity Cards ── */}
-          <Text style={styles.sectionLabel}>Your Activities</Text>
-
           {scheduleLoading && (
             <>
-              <ActivityCard title="" iconEmoji="" starValue={0} status="PENDING" startTime="" isLoading />
+              <Text style={styles.sectionLabel}>
+                {firstThenMode ? 'Right Now' : 'Your Activities'}
+              </Text>
               <ActivityCard title="" iconEmoji="" starValue={0} status="PENDING" startTime="" isLoading />
               <ActivityCard title="" iconEmoji="" starValue={0} status="PENDING" startTime="" isLoading />
             </>
@@ -196,19 +229,57 @@ export default function ChildHomeScreen() {
             </View>
           )}
 
-          {schedule?.is_published &&
-            schedule.scheduledSets.map((set, index) => (
+          {/* First-Then mode: only the current card + a muted preview of the next */}
+          {schedule?.is_published && firstThenMode && firstThenSlice.first && (
+            <>
+              <Text style={styles.sectionLabel}>First — Right Now</Text>
               <ActivityCard
-                key={set.scheduled_set_id}
-                title={set.setName}
-                iconEmoji={set.iconEmoji}
-                starValue={set.totalStars}
-                status={set.status}
-                startTime={set.start_time}
-                colorIndex={index}
-                onPress={() => handleCardPress(set)}
+                key={firstThenSlice.first.set.scheduled_set_id}
+                title={firstThenSlice.first.set.setName}
+                iconEmoji={firstThenSlice.first.set.iconEmoji}
+                starValue={firstThenSlice.first.set.totalStars}
+                status={firstThenSlice.first.set.status}
+                startTime={firstThenSlice.first.set.start_time}
+                colorIndex={firstThenSlice.first.originalIndex}
+                onPress={() => handleCardPress(firstThenSlice.first!.set)}
               />
-            ))}
+              {firstThenSlice.then && (
+                <>
+                  <Text style={[styles.sectionLabel, styles.thenLabel]}>Then…</Text>
+                  <View style={styles.thenCardWrap}>
+                    <ActivityCard
+                      key={firstThenSlice.then.set.scheduled_set_id}
+                      title={firstThenSlice.then.set.setName}
+                      iconEmoji={firstThenSlice.then.set.iconEmoji}
+                      starValue={firstThenSlice.then.set.totalStars}
+                      status={firstThenSlice.then.set.status}
+                      startTime={firstThenSlice.then.set.start_time}
+                      colorIndex={firstThenSlice.then.originalIndex}
+                    />
+                  </View>
+                </>
+              )}
+            </>
+          )}
+
+          {/* Default mode: full list of every activity in the day */}
+          {schedule?.is_published && !firstThenMode && (
+            <>
+              <Text style={styles.sectionLabel}>Your Activities</Text>
+              {schedule.scheduledSets.map((set, index) => (
+                <ActivityCard
+                  key={set.scheduled_set_id}
+                  title={set.setName}
+                  iconEmoji={set.iconEmoji}
+                  starValue={set.totalStars}
+                  status={set.status}
+                  startTime={set.start_time}
+                  colorIndex={index}
+                  onPress={() => handleCardPress(set)}
+                />
+              ))}
+            </>
+          )}
 
           {/* ── All-time stars ── */}
           <View style={[styles.card, styles.starsRow]}>
@@ -351,6 +422,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 8,
     marginTop: 16,
+  },
+  thenLabel: {
+    // Quieter divider — the "Then…" preview is intentionally less prominent
+    // than the current "First" card so the child's eye lands on the active
+    // item first.
+    color: '#9CA3AF',
+    marginTop: 20,
+  },
+  thenCardWrap: {
+    // Muted opacity on the preview card keeps it visible without competing
+    // for attention with the active card. The child can see what's coming
+    // but isn't pulled toward it.
+    opacity: 0.6,
   },
   allDoneBanner: {
     backgroundColor: '#FFF0C0',

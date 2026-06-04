@@ -38,6 +38,7 @@ export type Database = {
           avatar_emoji: string;
           total_stars: number;
           current_streak: number;
+          first_then_mode: boolean;
         };
         Insert: {
           profile_id?: string;
@@ -48,6 +49,7 @@ export type Database = {
           avatar_emoji?: string;
           total_stars?: number;
           current_streak?: number;
+          first_then_mode?: boolean;
         };
         Update: {
           user_id?: string | null;
@@ -57,6 +59,7 @@ export type Database = {
           avatar_emoji?: string;
           total_stars?: number;
           current_streak?: number;
+          first_then_mode?: boolean;
         };
         Relationships: [];
       };

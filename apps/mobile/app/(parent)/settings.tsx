@@ -41,6 +41,7 @@ interface ChildProfile {
   child_name: string;
   avatar_emoji: string;
   date_of_birth: string;
+  first_then_mode: boolean;
 }
 
 interface ParentPrefs {
@@ -61,6 +62,7 @@ const childSchema = z.object({
   child_name: z.string().min(1, 'Name is required').max(50),
   avatar_emoji: z.string().min(1, 'Pick an emoji'),
   date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD format'),
+  first_then_mode: z.boolean(),
 });
 
 const inviteSchema = z.object({
@@ -75,7 +77,7 @@ const EMOJI_OPTIONS = ['🦁', '🐼', '🐨', '🦊', '🐸', '🐙', '🦄', '
 async function fetchChildren(parentId: string): Promise<ChildProfile[]> {
   const { data, error } = await supabase
     .from('child_profiles')
-    .select('profile_id, child_name, avatar_emoji, date_of_birth')
+    .select('profile_id, child_name, avatar_emoji, date_of_birth, first_then_mode')
     .eq('parent_id', parentId)
     .order('child_name');
   if (error) throw error;
@@ -168,11 +170,17 @@ function ChildModal({
   initial: ChildProfile | null;
   isLoading: boolean;
   onClose: () => void;
-  onSave: (data: { child_name: string; avatar_emoji: string; date_of_birth: string }) => void;
+  onSave: (data: {
+    child_name: string;
+    avatar_emoji: string;
+    date_of_birth: string;
+    first_then_mode: boolean;
+  }) => void;
 }) {
   const [name, setName] = useState(initial?.child_name ?? '');
   const [emoji, setEmoji] = useState(initial?.avatar_emoji ?? '🦁');
   const [dob, setDob] = useState(initial?.date_of_birth ?? '');
+  const [firstThenMode, setFirstThenMode] = useState(initial?.first_then_mode ?? false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSave = () => {
@@ -180,6 +188,7 @@ function ChildModal({
       child_name: name,
       avatar_emoji: emoji,
       date_of_birth: dob,
+      first_then_mode: firstThenMode,
     });
     if (!result.success) {
       const errs: Record<string, string> = {};
@@ -206,6 +215,7 @@ function ChildModal({
     setName(initial?.child_name ?? '');
     setEmoji(initial?.avatar_emoji ?? '🦁');
     setDob(initial?.date_of_birth ?? '');
+    setFirstThenMode(initial?.first_then_mode ?? false);
     setErrors({});
   }, [initial]);
 
@@ -287,6 +297,49 @@ function ChildModal({
           ) : (
             <View className="mb-3" />
           )}
+
+          {/* First-Then mode toggle — ASD support preference, persisted per child */}
+          <View
+            style={{
+              backgroundColor: '#F5F0FF',
+              borderRadius: 16,
+              padding: 14,
+              marginBottom: 16,
+            }}
+          >
+            <View className="flex-row items-center justify-between">
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text
+                  style={{
+                    fontFamily: 'Inter_600SemiBold',
+                    fontSize: 14,
+                    color: '#111827',
+                  }}
+                >
+                  First-Then mode
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: 'Inter_400Regular',
+                    fontSize: 12,
+                    color: '#6B7280',
+                    marginTop: 2,
+                    lineHeight: 16,
+                  }}
+                >
+                  Show only the current activity and a preview of what's next,
+                  instead of the full day. Reduces overwhelm.
+                </Text>
+              </View>
+              <Switch
+                value={firstThenMode}
+                onValueChange={setFirstThenMode}
+                trackColor={{ false: '#D1D5DB', true: '#7C3AED' }}
+                thumbColor="#FFFFFF"
+                accessibilityLabel="Toggle First-Then mode for this child"
+              />
+            </View>
+          </View>
 
           {/* Save button — full width, inside scroll so keyboard doesn't cover it */}
           <TouchableOpacity
@@ -782,6 +835,7 @@ export default function SettingsScreen() {
       child_name: string;
       avatar_emoji: string;
       date_of_birth: string;
+      first_then_mode: boolean;
     }) => {
       if (payload.profile_id) {
         const { error } = await supabase
@@ -790,6 +844,7 @@ export default function SettingsScreen() {
             child_name: payload.child_name,
             avatar_emoji: payload.avatar_emoji,
             date_of_birth: payload.date_of_birth,
+            first_then_mode: payload.first_then_mode,
           })
           .eq('profile_id', payload.profile_id);
         if (error) throw error;
@@ -799,6 +854,7 @@ export default function SettingsScreen() {
           child_name: payload.child_name,
           avatar_emoji: payload.avatar_emoji,
           date_of_birth: payload.date_of_birth,
+          first_then_mode: payload.first_then_mode,
         });
         if (error) throw error;
       }
