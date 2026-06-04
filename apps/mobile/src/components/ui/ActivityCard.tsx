@@ -63,14 +63,18 @@ export function ActivityCard({
 
       {/* Content */}
       <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={1}>{title}</Text>
-        <Text style={styles.time}>{startTime}</Text>
-        <Text style={styles.stars}>⭐ {starValue} stars</Text>
+        <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+          {title}
+        </Text>
+        <Text style={styles.time} numberOfLines={1}>{startTime}</Text>
+        <Text style={styles.stars} numberOfLines={1}>⭐ {starValue} stars</Text>
       </View>
 
       {/* Status pill */}
       <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-        <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
+        <Text style={[styles.badgeText, { color: badge.text }]} numberOfLines={1}>
+          {badge.label}
+        </Text>
       </View>
     </TouchableOpacity>
   );

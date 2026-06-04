@@ -121,11 +121,17 @@ export default function ChildHomeScreen() {
           {/* ── Header ── */}
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.greeting}>
+              <Text
+                style={styles.greeting}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
                 {getGreeting()},{'\n'}
                 {selectedChild.avatar_emoji} {selectedChild.child_name}!
               </Text>
-              <Text style={styles.date}>{today}</Text>
+              <Text style={styles.date} numberOfLines={1}>{today}</Text>
             </View>
             <View style={styles.starsBadge}>
               <StarCounter count={todayStars} size="md" />
@@ -258,7 +264,8 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 16,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start', // anchor badge to top of greeting, not centre
+    gap: 12,
   },
   greeting: {
     fontFamily: 'Nunito_700Bold',
