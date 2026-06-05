@@ -28,9 +28,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { format, subDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
 import { useResponsive } from '@/hooks/useResponsive';
+import { buildEvidencePack, renderEvidencePackHtml } from '@/lib/ehcp-report';
 import type {
   ChildProfileRow,
   EhcpOutcomeRow,
@@ -163,6 +167,41 @@ export default function EhcpScreen() {
     },
   });
 
+  const [isExporting, setIsExporting] = useState(false);
+  const handleExport = useCallback(async () => {
+    if (!activeChildId) return;
+    setIsExporting(true);
+    try {
+      // 12-month period is the standard for an annual review.
+      const dateTo = format(new Date(), 'yyyy-MM-dd');
+      const dateFrom = format(subDays(new Date(), 365), 'yyyy-MM-dd');
+      const pack = await buildEvidencePack(activeChildId, dateFrom, dateTo);
+      if (!pack) throw new Error('Could not load evidence');
+      const html = renderEvidencePackHtml(pack);
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'EHCP Evidence Pack',
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        Alert.alert(
+          'Evidence pack generated',
+          `Saved to:\n${uri}\n\nDevice sharing is unavailable.`,
+        );
+      }
+    } catch (err) {
+      Alert.alert(
+        'Export failed',
+        err instanceof Error ? err.message : 'Unknown error',
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  }, [activeChildId]);
+
   const handleDelete = useCallback(
     (outcome: EhcpOutcomeRow) => {
       Alert.alert(
@@ -266,6 +305,31 @@ export default function EhcpScreen() {
                     EHCP document handy — copy each outcome verbatim.
                   </Text>
                 </View>
+              )}
+
+              {outcomes.length > 0 && (
+                <TouchableOpacity
+                  style={styles.exportBtn}
+                  onPress={handleExport}
+                  disabled={isExporting}
+                  accessibilityLabel="Generate annual review evidence pack"
+                >
+                  {isExporting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Text style={styles.exportEmoji}>📄</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.exportTitle}>Generate Evidence Pack</Text>
+                        <Text style={styles.exportSub}>
+                          12-month PDF of progress against every outcome.
+                          One tap, ready for annual review.
+                        </Text>
+                      </View>
+                      <Text style={styles.exportArrow}>→</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               )}
 
               {(['ACTIVE', 'ACHIEVED', 'DISCONTINUED'] as EhcpStatus[]).map((status) => {
@@ -645,6 +709,38 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   addBtnText: { fontFamily: 'Nunito_700Bold', fontSize: 16, color: '#FFFFFF' },
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#5B21B6',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 16,
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  exportEmoji: { fontSize: 26 },
+  exportTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 15,
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  exportSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 15,
+  },
+  exportArrow: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 20,
+    color: '#FFFFFF',
+  },
 
   // Modal styles
   modalHeader: {
