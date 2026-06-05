@@ -30,6 +30,20 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
 
 type AgeBand = '4-6' | '7-10' | '11-14';
+type Provider = 'anthropic' | 'openai';
+
+const PROVIDER_LABEL: Record<Provider, { label: string; emoji: string; sub: string }> = {
+  anthropic: {
+    label: 'Claude (Opus 4.8)',
+    emoji: '🅰️',
+    sub: 'Premium — deeper reasoning, slower, higher cost',
+  },
+  openai: {
+    label: 'GPT-4o-mini',
+    emoji: '🅾️',
+    sub: 'Fast — lower cost, good for simpler routines',
+  },
+};
 
 interface DraftStep {
   title: string;
@@ -69,6 +83,7 @@ async function callGenerator(args: {
   prompt: string;
   child_first_name: string;
   age_band: AgeBand;
+  provider: Provider;
 }): Promise<GenerateResult> {
   const { data, error } = await supabase.functions.invoke('generate-routine', {
     body: args,
@@ -94,6 +109,7 @@ export default function AIGenerateScreen() {
 
   const [childFirstName, setChildFirstName] = useState('');
   const [ageBand, setAgeBand] = useState<AgeBand>('7-10');
+  const [provider, setProvider] = useState<Provider>('anthropic');
   const [prompt, setPrompt] = useState('');
   const [draft, setDraft] = useState<DraftRoutine | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -190,8 +206,9 @@ export default function AIGenerateScreen() {
       prompt: trimmed,
       child_first_name: childFirstName.trim(),
       age_band: ageBand,
+      provider,
     });
-  }, [prompt, childFirstName, ageBand, generateMutation]);
+  }, [prompt, childFirstName, ageBand, provider, generateMutation]);
 
   const updateStep = useCallback((idx: number, patch: Partial<DraftStep>) => {
     setDraft((d) => {
@@ -262,6 +279,31 @@ export default function AIGenerateScreen() {
                       </Text>
                     </TouchableOpacity>
                   ))}
+                </View>
+
+                <Text style={styles.label}>AI provider</Text>
+                <View style={styles.providerStack}>
+                  {(['anthropic', 'openai'] as Provider[]).map((p) => {
+                    const meta = PROVIDER_LABEL[p];
+                    const isActive = provider === p;
+                    return (
+                      <TouchableOpacity
+                        key={p}
+                        style={[styles.providerRow, isActive && styles.providerRowActive]}
+                        onPress={() => setProvider(p)}
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.providerEmoji}>{meta.emoji}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.providerLabel, isActive && styles.providerLabelActive]}>
+                            {meta.label}
+                          </Text>
+                          <Text style={styles.providerSub}>{meta.sub}</Text>
+                        </View>
+                        <Text style={styles.providerCheck}>{isActive ? '●' : '○'}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
 
                 <Text style={styles.label}>Describe your child + the routine</Text>
@@ -483,6 +525,41 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'right',
     marginTop: 4,
+  },
+  providerStack: { gap: 8, marginBottom: 4 },
+  providerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  providerRowActive: {
+    backgroundColor: '#EDE9FE',
+    borderColor: '#7C3AED',
+  },
+  providerEmoji: { fontSize: 22 },
+  providerLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+    color: '#111827',
+  },
+  providerLabelActive: { color: '#5B21B6' },
+  providerSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  providerCheck: {
+    fontSize: 18,
+    color: '#7C3AED',
+    width: 18,
+    textAlign: 'center',
   },
   bandRow: { flexDirection: 'row', gap: 8 },
   bandChip: {
