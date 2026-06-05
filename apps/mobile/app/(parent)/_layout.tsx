@@ -128,6 +128,8 @@ export default function ParentLayout() {
       <Tabs.Screen name="approve/[completionId]" options={{ href: null }} />
       {/* Hidden route — EHCP outcomes manager, opened from Settings */}
       <Tabs.Screen name="ehcp" options={{ href: null }} />
+      {/* Hidden route — AI routine generator, opened from Activity Sets */}
+      <Tabs.Screen name="ai-generate" options={{ href: null }} />
     </Tabs>
   );
 }

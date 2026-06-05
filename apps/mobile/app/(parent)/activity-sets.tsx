@@ -31,6 +31,7 @@ import { supabase } from '@/lib/supabase';
 import type { ActivitySetRow, StepRow } from '@/types/database';
 import { useResponsive } from '@/hooks/useResponsive';
 import { OutcomeLinker } from '@/components/parent/OutcomeLinker';
+import { useRouter } from 'expo-router';
 
 // ── Zod Schemas ──────────────────────────────────────────────────────────────
 const stepSchema = z.object({
@@ -690,6 +691,22 @@ export default function ActivitySetsScreen() {
   const canCreateCustom = canAddCustomSet(subscription);
   const queryClient = useQueryClient();
   const r = useResponsive();
+  const router = useRouter();
+
+  // Feature flag — only show AI generator entry when the parent has opted in
+  const { data: aiEnabled = false } = useQuery({
+    queryKey: ['aiEnabled', userId],
+    queryFn: async () => {
+      if (!userId) return false;
+      const { data } = await supabase
+        .from('parent_profiles')
+        .select('ai_routine_gen_enabled')
+        .eq('user_id', userId)
+        .maybeSingle();
+      return data?.ai_routine_gen_enabled ?? false;
+    },
+    enabled: !!userId,
+  });
 
   const [selectedItem, setSelectedItem] = useState<{
     set: ActivitySetRow;
@@ -731,6 +748,31 @@ export default function ActivitySetsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: r.scrollClearance + 72 }}>
+        {/* AI Generator entry — only shown when the parent has opted in.
+            Tapping leaves the screen; the existing + Create Custom Set
+            floating button keeps the manual path. */}
+        {aiEnabled && (
+          <TouchableOpacity
+            className="bg-white rounded-2xl px-4 py-3 mb-4 flex-row items-center shadow-sm"
+            style={{ borderWidth: 1, borderColor: '#EDE9FE' }}
+            onPress={() => router.push('/(parent)/ai-generate')}
+            accessibilityRole="button"
+          >
+            <Text style={{ fontSize: 22 }} className="mr-3">
+              ✨
+            </Text>
+            <View className="flex-1">
+              <Text className="font-inter font-semibold text-neutral-900 text-sm">
+                Generate with AI
+              </Text>
+              <Text className="font-inter text-neutral-500 text-xs mt-0.5">
+                Describe your child and the routine — review the draft before saving.
+              </Text>
+            </View>
+            <Text className="font-inter text-brand-primary">›</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Custom sets */}
         {customSets.length > 0 && (
           <>
