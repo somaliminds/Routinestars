@@ -30,6 +30,7 @@ import { useSubscriptionStore, canAddCustomSet } from '@/stores/subscription.sto
 import { supabase } from '@/lib/supabase';
 import type { ActivitySetRow, StepRow } from '@/types/database';
 import { useResponsive } from '@/hooks/useResponsive';
+import { OutcomeLinker } from '@/components/parent/OutcomeLinker';
 
 // ── Zod Schemas ──────────────────────────────────────────────────────────────
 const stepSchema = z.object({
@@ -583,6 +584,15 @@ function ActivitySetModal({
               </View>
             </View>
           )}
+
+          {/* Linked EHCP outcomes — visible for both custom and built-in sets so
+              parents can map any set to their child's outcomes. */}
+          <Text className="font-inter font-semibold text-neutral-700 text-xs uppercase tracking-wide mb-2">
+            Linked EHCP Outcomes
+          </Text>
+          <View className="mb-4">
+            <OutcomeLinker setId={item?.set.set_id} parentUserId={parentId} />
+          </View>
 
           {/* Steps */}
           <Text className="font-inter font-semibold text-neutral-700 text-xs uppercase tracking-wide mb-3">

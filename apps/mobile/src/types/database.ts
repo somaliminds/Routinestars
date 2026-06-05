@@ -424,6 +424,25 @@ export type Database = {
         };
         Relationships: [];
       };
+      activity_set_outcome_tags: {
+        Row: {
+          tag_id: string;
+          set_id: string;
+          outcome_id: string;
+          tagged_at: string;
+        };
+        Insert: {
+          tag_id?: string;
+          set_id: string;
+          outcome_id: string;
+          tagged_at?: string;
+        };
+        Update: {
+          set_id?: string;
+          outcome_id?: string;
+        };
+        Relationships: [];
+      };
       ehcp_outcomes: {
         Row: {
           outcome_id: string;
@@ -506,6 +525,8 @@ export type Zone = EmotionalCheckinRow['zone'];
 export type EhcpOutcomeRow = Database['public']['Tables']['ehcp_outcomes']['Row'];
 export type EhcpCategory = EhcpOutcomeRow['category'];
 export type EhcpStatus = EhcpOutcomeRow['status'];
+export type ActivitySetOutcomeTagRow =
+  Database['public']['Tables']['activity_set_outcome_tags']['Row'];
 
 export type ScheduledSetStatus =
   | 'PENDING'
