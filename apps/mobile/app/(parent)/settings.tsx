@@ -657,6 +657,68 @@ function NotificationsSection({ userId }: { userId: string }) {
   );
 }
 
+// ── AI features section ──────────────────────────────────────────────────────
+// Per-parent opt-in for the (Sprint 3) AI routine generator. Defaulted FALSE
+// per UK GDPR Article 22 default-off posture for automated decision-making.
+// Even when ON, the AI never writes to the DB directly — drafts are reviewed
+// and saved manually by the parent. See migration 023 for the audit log.
+function AIFeaturesSection({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const { data: enabled, isLoading } = useQuery({
+    queryKey: ['aiEnabled', userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('parent_profiles')
+        .select('ai_routine_gen_enabled')
+        .eq('user_id', userId)
+        .maybeSingle();
+      return data?.ai_routine_gen_enabled ?? false;
+    },
+    enabled: !!userId,
+  });
+
+  const toggle = (next: boolean) => {
+    void supabase
+      .from('parent_profiles')
+      .update({ ai_routine_gen_enabled: next })
+      .eq('user_id', userId)
+      .then(() => qc.invalidateQueries({ queryKey: ['aiEnabled', userId] }));
+  };
+
+  if (isLoading) return <ActivityIndicator className="my-4" color="#7C3AED" />;
+
+  return (
+    <View>
+      <View className="bg-white rounded-2xl px-5 py-4 mb-2 shadow-sm flex-row items-center">
+        <View className="flex-1 mr-4">
+          <Text className="font-inter font-semibold text-neutral-900 text-sm">
+            AI Routine Generator
+          </Text>
+          <Text className="font-inter text-neutral-500 text-xs mt-0.5">
+            Describe your child and we'll draft a routine you can review,
+            edit, and save. Drafts never appear on the child's screen
+            without your explicit save.
+          </Text>
+        </View>
+        <Switch
+          value={enabled ?? false}
+          onValueChange={toggle}
+          trackColor={{ true: '#7C3AED', false: '#E5E7EB' }}
+          thumbColor="#fff"
+        />
+      </View>
+      <View className="bg-amber-50 rounded-2xl px-4 py-3 mb-2 border border-amber-200">
+        <Text className="font-inter text-amber-900 text-xs leading-relaxed">
+          ⚠️ This feature is rolling out gradually. Toggling it on registers
+          your interest; the generator goes live in a future update. We never
+          send your child's full name, photo, medical history, or DOB to the
+          AI provider — only a first name, age band, and the prompt you write.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 // ── Care team section ─────────────────────────────────────────────────────────
 function CareTeamSection({
   parentId,
@@ -994,6 +1056,10 @@ export default function SettingsScreen() {
         {/* ── Notifications ── */}
         <SectionHeader title="Notifications" />
         <NotificationsSection userId={userId} />
+
+        {/* ── AI features (experimental) ── */}
+        <SectionHeader title="AI Features (Experimental)" />
+        <AIFeaturesSection userId={userId} />
 
         {/* ── Care Team ── */}
         {activeChild && (

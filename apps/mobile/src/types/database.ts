@@ -71,6 +71,7 @@ export type Database = {
           notify_on_completion: boolean;
           notify_on_request: boolean;
           notify_transition_warnings: boolean;
+          ai_routine_gen_enabled: boolean;
           expo_push_token: string | null;
         };
         Insert: {
@@ -80,6 +81,7 @@ export type Database = {
           notify_on_completion?: boolean;
           notify_on_request?: boolean;
           notify_transition_warnings?: boolean;
+          ai_routine_gen_enabled?: boolean;
           expo_push_token?: string | null;
         };
         Update: {
@@ -87,6 +89,7 @@ export type Database = {
           notify_on_completion?: boolean;
           notify_on_request?: boolean;
           notify_transition_warnings?: boolean;
+          ai_routine_gen_enabled?: boolean;
           expo_push_token?: string | null;
         };
         Relationships: [];
