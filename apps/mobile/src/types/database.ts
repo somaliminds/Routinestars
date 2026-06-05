@@ -424,6 +424,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      ehcp_outcomes: {
+        Row: {
+          outcome_id: string;
+          child_id: string;
+          outcome_text: string;
+          category:
+            | 'COMMUNICATION'
+            | 'COGNITION'
+            | 'SOCIAL_EMOTIONAL'
+            | 'SENSORY_PHYSICAL'
+            | 'INDEPENDENCE'
+            | 'OTHER';
+          target_date: string | null;
+          status: 'ACTIVE' | 'ACHIEVED' | 'DISCONTINUED';
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          outcome_id?: string;
+          child_id: string;
+          outcome_text: string;
+          category:
+            | 'COMMUNICATION'
+            | 'COGNITION'
+            | 'SOCIAL_EMOTIONAL'
+            | 'SENSORY_PHYSICAL'
+            | 'INDEPENDENCE'
+            | 'OTHER';
+          target_date?: string | null;
+          status?: 'ACTIVE' | 'ACHIEVED' | 'DISCONTINUED';
+          notes?: string | null;
+        };
+        Update: {
+          outcome_text?: string;
+          category?:
+            | 'COMMUNICATION'
+            | 'COGNITION'
+            | 'SOCIAL_EMOTIONAL'
+            | 'SENSORY_PHYSICAL'
+            | 'INDEPENDENCE'
+            | 'OTHER';
+          target_date?: string | null;
+          status?: 'ACTIVE' | 'ACHIEVED' | 'DISCONTINUED';
+          notes?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -455,6 +503,9 @@ export type CareTeamMemberRow = Database['public']['Tables']['care_team_members'
 export type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row'];
 export type EmotionalCheckinRow = Database['public']['Tables']['emotional_checkins']['Row'];
 export type Zone = EmotionalCheckinRow['zone'];
+export type EhcpOutcomeRow = Database['public']['Tables']['ehcp_outcomes']['Row'];
+export type EhcpCategory = EhcpOutcomeRow['category'];
+export type EhcpStatus = EhcpOutcomeRow['status'];
 
 export type ScheduledSetStatus =
   | 'PENDING'

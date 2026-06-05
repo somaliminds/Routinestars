@@ -958,6 +958,28 @@ export default function SettingsScreen() {
           </>
         )}
 
+        {/* ── EHCP Outcomes ── */}
+        <SectionHeader title="EHCP Outcomes" />
+        <TouchableOpacity
+          className="bg-white rounded-2xl px-4 py-4 mb-2 shadow-sm flex-row items-center"
+          onPress={() => router.push('/(parent)/ehcp')}
+          accessibilityRole="button"
+        >
+          <Text style={{ fontSize: 24 }} className="mr-3">
+            📋
+          </Text>
+          <View className="flex-1">
+            <Text className="font-inter font-semibold text-neutral-900 text-sm">
+              Manage outcomes
+            </Text>
+            <Text className="font-inter text-neutral-500 text-xs mt-0.5">
+              Set up the outcomes from your child's EHCP so review-time
+              evidence packs generate automatically.
+            </Text>
+          </View>
+          <Text className="font-inter text-neutral-400 ml-2">›</Text>
+        </TouchableOpacity>
+
         {/* ── PIN Change ── */}
         <SectionHeader title="Change PIN" />
         <PinChangeSection userId={userId} />

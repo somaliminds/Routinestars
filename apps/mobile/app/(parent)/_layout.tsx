@@ -126,6 +126,8 @@ export default function ParentLayout() {
       />
       {/* Hidden route — approval detail, not shown in tab bar */}
       <Tabs.Screen name="approve/[completionId]" options={{ href: null }} />
+      {/* Hidden route — EHCP outcomes manager, opened from Settings */}
+      <Tabs.Screen name="ehcp" options={{ href: null }} />
     </Tabs>
   );
 }
