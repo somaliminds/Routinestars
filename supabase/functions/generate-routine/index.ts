@@ -1,8 +1,18 @@
 /**
- * generate-routine — Phase 5 Sprint 3.1.
+ * generate-routine — Phase 5 Sprint 3.1 + 3.4 (multi-provider).
  * Supabase Edge Function (Deno runtime).
  *
- * AI routine generator with the full 8-layer governance pipeline:
+ * AI routine generator with the full 8-layer governance pipeline.
+ * Supports two LLM providers behind a single internal interface so
+ * governance, audit log, validation, and refusal handling are identical
+ * regardless of which model the parent picks:
+ *
+ *   - Anthropic Claude Opus 4.8 (default, premium)
+ *   - OpenAI GPT-4o-mini (low-cost / fallback)
+ *
+ * The provider choice is per-call (parent picks via UI). The two share
+ * the same system prompt, same Zod schemas, same audit log row format,
+ * and same refusal codes — only the wire format of the LLM call differs.
  *
  *   1. Architecture choke point — API key server-side only, no client
  *      can talk to Anthropic directly.
@@ -37,12 +47,19 @@
  */
 
 import Anthropic from 'npm:@anthropic-ai/sdk@0.40';
+import OpenAI from 'npm:openai@5';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z } from 'https://esm.sh/zod@3.23.8';
 
 // ── Configuration ────────────────────────────────────────────────────────────
 
-const MODEL = 'claude-opus-4-8';
+type Provider = 'anthropic' | 'openai';
+
+const PROVIDER_CONFIG: Record<Provider, { model: string; envVar: string }> = {
+  anthropic: { model: 'claude-opus-4-8', envVar: 'ANTHROPIC_API_KEY' },
+  openai: { model: 'gpt-4o-mini', envVar: 'OPENAI_API_KEY' },
+};
+
 const MAX_TOKENS = 4096;
 const RATE_LIMIT_PER_DAY = 20; // Hard ceiling; closed alpha
 const MAX_PROMPT_LENGTH = 600;
@@ -188,6 +205,7 @@ const RequestSchema = z.object({
   prompt: z.string().min(MIN_PROMPT_LENGTH).max(MAX_PROMPT_LENGTH),
   child_first_name: z.string().min(1).max(40),
   age_band: z.enum(['4-6', '7-10', '11-14']),
+  provider: z.enum(['anthropic', 'openai']).default('anthropic'),
 });
 
 const StepSchema = z.object({
@@ -280,6 +298,99 @@ function jsonResponse(body: unknown, status = 200, extraHeaders: Record<string, 
   });
 }
 
+// ── Provider dispatch ────────────────────────────────────────────────────────
+//
+// Returns a normalised shape regardless of provider: which tool was called +
+// the parsed input + the raw response (for the audit log). Throws on
+// transport / auth errors; the caller updates the audit log and responds 500.
+
+interface LLMResult {
+  toolName: string;
+  toolInput: unknown;
+  rawResponse: unknown;
+}
+
+async function callAnthropic(systemPrompt: string, userMessage: string): Promise<LLMResult> {
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
+  const anthropic = new Anthropic({ apiKey });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response: any = await anthropic.messages.create({
+    model: PROVIDER_CONFIG.anthropic.model,
+    max_tokens: MAX_TOKENS,
+    thinking: { type: 'adaptive' },
+    system: [
+      { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } },
+    ],
+    tools: TOOLS,
+    tool_choice: { type: 'any' },
+    messages: [{ role: 'user', content: userMessage }],
+  });
+  interface AnyContentBlock {
+    type: string;
+    name?: string;
+    input?: unknown;
+  }
+  const blocks = response.content as unknown as AnyContentBlock[];
+  const toolUse = blocks.find((b) => b.type === 'tool_use');
+  if (!toolUse || !toolUse.name) {
+    return { toolName: '', toolInput: null, rawResponse: response };
+  }
+  return { toolName: toolUse.name, toolInput: toolUse.input, rawResponse: response };
+}
+
+async function callOpenAI(systemPrompt: string, userMessage: string): Promise<LLMResult> {
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const openai: any = new OpenAI({ apiKey });
+  // OpenAI tool format: wrap each tool in { type: 'function', function: {...} }.
+  // The input_schema → parameters rename is the only real shape difference.
+  const openaiTools = TOOLS.map((t) => ({
+    type: 'function' as const,
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.input_schema,
+    },
+  }));
+  const response = await openai.chat.completions.create({
+    model: PROVIDER_CONFIG.openai.model,
+    max_tokens: MAX_TOKENS,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage },
+    ],
+    tools: openaiTools,
+    tool_choice: 'required',
+  });
+  const toolCall = response.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall || !toolCall.function?.name) {
+    return { toolName: '', toolInput: null, rawResponse: response };
+  }
+  let parsedArgs: unknown = null;
+  try {
+    parsedArgs = JSON.parse(toolCall.function.arguments ?? '{}');
+  } catch {
+    parsedArgs = null;
+  }
+  return {
+    toolName: toolCall.function.name,
+    toolInput: parsedArgs,
+    rawResponse: response,
+  };
+}
+
+async function callLLM(
+  provider: Provider,
+  systemPrompt: string,
+  userMessage: string,
+): Promise<LLMResult> {
+  return provider === 'openai'
+    ? await callOpenAI(systemPrompt, userMessage)
+    : await callAnthropic(systemPrompt, userMessage);
+}
+
 // ── Main handler ─────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
@@ -370,7 +481,7 @@ Deno.serve(async (req: Request) => {
         pii_stripped: stripped,
         injection_detected: injectionDetected,
       },
-      model_version: MODEL,
+      model_version: PROVIDER_CONFIG[body.provider as Provider].model,
     })
     .select('log_id')
     .single();
@@ -395,8 +506,9 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ kind: 'refusal', reason: 'injection_attempt' });
   }
 
-  // ── Layer 1+2: Anthropic call (system-cached, forced tool use) ──
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  // ── Layer 1+2: provider dispatch (system-cached on Anthropic, forced tool use both) ──
+  const provider = body.provider as Provider;
+  const apiKey = Deno.env.get(PROVIDER_CONFIG[provider].envVar);
   if (!apiKey) {
     await supabase
       .from('ai_generation_log')
@@ -408,33 +520,14 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'server_error' }, 500);
   }
 
-  const anthropic = new Anthropic({ apiKey });
-
   const userMessage =
     `Child first name: ${body.child_first_name}\n` +
     `Age band: ${body.age_band}\n` +
     `Parent's description: ${sanitized}`;
 
-  // Typed as `any` here for the same reason as the TOOLS array — the
-  // Anthropic SDK works fine at runtime in Deno; only the IDE complains.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let response: any;
+  let llmResult: LLMResult;
   try {
-    response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      thinking: { type: 'adaptive' },
-      system: [
-        {
-          type: 'text',
-          text: SYSTEM_PROMPT,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      tools: TOOLS,
-      tool_choice: { type: 'any' },
-      messages: [{ role: 'user', content: userMessage }],
-    });
+    llmResult = await callLLM(provider, SYSTEM_PROMPT, userMessage);
   } catch (err) {
     await supabase
       .from('ai_generation_log')
@@ -448,30 +541,21 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── Layer 4: extract + validate tool call ──
-  // Use a minimal local type — avoids depending on the Anthropic SDK's
-  // exported types here (IDE tsconfig doesn't load Deno npm: types).
-  interface AnyContentBlock {
-    type: string;
-    name?: string;
-    input?: unknown;
-  }
-  const blocks = response.content as unknown as AnyContentBlock[];
-  const toolUse = blocks.find((b) => b.type === 'tool_use');
-  if (!toolUse || !toolUse.name) {
+  if (!llmResult.toolName) {
     await supabase
       .from('ai_generation_log')
       .update({
         passed_validation: false,
         rejection_reason: 'no_tool_call',
-        raw_response: response as unknown as Record<string, unknown>,
+        raw_response: llmResult.rawResponse as Record<string, unknown>,
       })
       .eq('log_id', logId);
     return jsonResponse({ kind: 'refusal', reason: 'rule_violation' });
   }
 
-  const rawInput = toolUse.input as unknown;
+  const rawInput = llmResult.toolInput;
 
-  if (toolUse.name === 'refuse_request') {
+  if (llmResult.toolName === 'refuse_request') {
     const parsed = RefuseRequestSchema.safeParse(rawInput);
     const reason = parsed.success ? parsed.data.reason : 'rule_violation';
     await supabase
@@ -486,13 +570,13 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ kind: 'refusal', reason });
   }
 
-  if (toolUse.name !== 'create_routine') {
+  if (llmResult.toolName !== 'create_routine') {
     // Unknown tool — shouldn't happen with tool_choice:any against our 2 tools,
     // but defend anyway.
     await supabase
       .from('ai_generation_log')
       .update({
-        tool_called: toolUse.name,
+        tool_called: llmResult.toolName,
         passed_validation: false,
         rejection_reason: 'unknown_tool',
         raw_response: rawInput as Record<string, unknown>,
