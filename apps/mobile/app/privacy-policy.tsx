@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 
-const LAST_UPDATED = '15 March 2026';
+const LAST_UPDATED = '5 June 2026';
 const CONTACT_EMAIL = 'privacy@routinestars.app';
 const COMPANY = 'RoutineStars Ltd';
 
@@ -43,7 +43,7 @@ export default function PrivacyPolicyScreen() {
         </Section>
 
         <Section title="4. Legal Basis for Processing (UK GDPR)">
-          {`• Contract performance: account management, schedule delivery, approval flow\n• Legitimate interests: app security, crash reporting, streak calculations\n• Consent: marketing emails (opt-in only, separate from service emails)\n• Legal obligation: retaining transaction records as required by UK law`}
+          {`• Contract performance: account management, schedule delivery, approval flow\n• Legitimate interests: app security, crash reporting, streak calculations\n• Consent (Article 6(1)(a) and Article 22): the optional AI Routine Generator — see Section 8\n• Consent: marketing emails (opt-in only, separate from service emails)\n• Legal obligation: retaining transaction records as required by UK law`}
         </Section>
 
         <Section title="5. How We Use Your Data">
@@ -55,26 +55,30 @@ export default function PrivacyPolicyScreen() {
         </Section>
 
         <Section title="7. Data Sharing">
-          {`We share data only with:\n• Supabase (database and authentication) — hosted in EU\n• Stripe (payment processing) — PCI DSS Level 1 certified\n• Sentry (crash reporting) — anonymised data only\n• Firebase (push notifications) — device token only\n\nWe do not sell, rent, or trade any personal data. We do not share child data with any third party beyond what is strictly required to operate the service.`}
+          {`We share data only with:\n• Supabase (database and authentication) — hosted in EU\n• Stripe (payment processing) — PCI DSS Level 1 certified\n• Sentry (crash reporting) — anonymised data only\n• Firebase (push notifications) — device token only\n• Anthropic (AI provider, US) — ONLY when the AI Routine Generator is enabled by the parent. See Section 8.\n\nWe do not sell, rent, or trade any personal data. We do not share child data with any third party beyond what is strictly required to operate the service.`}
         </Section>
 
-        <Section title="8. Your Rights (UK GDPR)">
+        <Section title="8. AI-Assisted Routine Generation (Optional, Off by Default)">
+          {`RoutineStars offers an optional AI Routine Generator that drafts an activity routine from a short description you write. The feature is OFF by default. You must explicitly opt in via Settings -> AI Features before any data is sent to the AI provider. You can opt out at any time from the same screen.\n\nProvider:\n• Anthropic, PBC (United States). We have a Data Processing Addendum on file. Anthropic does not train models on data sent via this API.\n\nWhat we send to Anthropic per generation:\n• Your free-text prompt (max 600 characters), with emails and phone numbers removed before transmission\n• Your child's FIRST NAME ONLY (never full name, last name, date of birth, photo, medical history, or any other identifier)\n• An age band (4-6 / 7-10 / 11-14)\n\nWhat we do NOT send to Anthropic:\n• Child's full name, last name, or date of birth\n• Any photos, avatars, or images\n• Any medical, therapeutic, diagnostic, or clinical data\n• Subscription, billing, or payment data\n• Activity completion records or EHCP outcomes\n\nHow the output is handled:\n• Output is returned to your device as a DRAFT only.\n• Nothing is saved or shown to your child unless you review, optionally edit, and explicitly tap Save.\n• Every generation is logged in our ai_generation_log table for audit (described below).\n\nAutomated decision-making (UK GDPR Article 22):\n• The AI does not make decisions about your child. It produces a draft you review.\n• You retain full editorial control. The output is a suggestion, not a determination.\n\nRetention of AI generation data:\n• Prompt text and raw model response: 90 days from generation, then automatically deleted.\n• Metadata (model version, validation outcome, tool called, timestamp): retained for ongoing audit.\n• The audit log is readable only by you (via Subject Access Request) and our service-role operators.\n\nRefusal categories:\nThe AI refuses to generate routines for any request involving advice, diagnosis, medical decisions, safeguarding concerns, off-topic content, or prompt-injection attempts. Refusals are logged with the reason code.\n\nWithdrawing consent:\nTurning off the toggle in Settings stops any further data being sent to Anthropic. To delete your historical generation log, email ${CONTACT_EMAIL} — we will erase the prompt + response fields within 30 days and confirm by email.`}
+        </Section>
+
+        <Section title="9. Your Rights (UK GDPR)">
           {`You have the right to:\n• Access: request a copy of all data we hold about you\n• Rectification: correct inaccurate data\n• Erasure: request deletion of your account and all associated data\n• Portability: receive your data in a machine-readable format\n• Restriction: limit how we process your data\n• Objection: object to processing based on legitimate interests\n\nTo exercise any right, email ${CONTACT_EMAIL}. We will respond within 30 days.`}
         </Section>
 
-        <Section title="9. Security">
+        <Section title="10. Security">
           {`• All data in transit is encrypted via TLS 1.2+\n• Parent PINs are hashed with bcrypt (cost factor 12) and never stored in plaintext\n• Authentication uses short-lived JWT tokens (15 minutes) stored in device SecureStore\n• Row-level security policies ensure each parent can only access their own data\n• Stripe handles all payment data — we never see card numbers`}
         </Section>
 
-        <Section title="10. Cookies & Analytics">
+        <Section title="11. Cookies & Analytics">
           {`The mobile app does not use cookies. We do not use Google Analytics or similar tracking tools. Anonymous crash reports are collected via Sentry solely for improving app stability.`}
         </Section>
 
-        <Section title="11. Changes to This Policy">
+        <Section title="12. Changes to This Policy">
           {`We will notify you of material changes via the email address on your account at least 14 days before changes take effect. Continued use of the app after that date constitutes acceptance.`}
         </Section>
 
-        <Section title="12. Contact & Complaints">
+        <Section title="13. Contact & Complaints">
           {`Email: ${CONTACT_EMAIL}\n\nIf you are unhappy with how we handle your data, you have the right to lodge a complaint with the Information Commissioner's Office (ICO) at ico.org.uk.`}
         </Section>
 
