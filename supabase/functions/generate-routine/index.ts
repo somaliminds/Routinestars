@@ -324,7 +324,15 @@ async function callAnthropic(systemPrompt: string, userMessage: string): Promise
   const response: any = await anthropic.messages.create({
     model: PROVIDER_CONFIG.anthropic.model,
     max_tokens: MAX_TOKENS,
-    thinking: { type: 'adaptive' },
+    // Thinking is DISABLED here because Anthropic's API rejects the
+    // combination thinking={adaptive} + tool_choice={type: any} with a
+    // 400 ("Thinking may not be enabled when tool_choice forces tool
+    // use"). Our 8-layer governance MUST force tool use - the whole
+    // design point is the model literally cannot emit prose - so the
+    // right trade-off is to disable thinking. Routine generation is a
+    // structured-output task with a heavily constrained system prompt;
+    // adaptive thinking buys us little here vs guaranteed tool calls.
+    thinking: { type: 'disabled' },
     system: [
       { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } },
     ],
