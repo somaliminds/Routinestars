@@ -69,11 +69,9 @@ function AuthGuard() {
       if (!email) return 'parent';
 
       // Mark any pending invites for this email as accepted (idempotent).
-      await supabase
-        .from('care_team_members')
-        .update({ accepted_at: new Date().toISOString() })
-        .eq('email', email)
-        .is('accepted_at', null);
+      // Uses the SECURITY DEFINER RPC because the direct UPDATE is blocked
+      // by the parent-only RLS policy from migration 006.
+      await supabase.rpc('accept_my_care_team_invitations');
 
       const [{ count: ownChildren }, { count: taInvites }] = await Promise.all([
         supabase
