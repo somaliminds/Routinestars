@@ -28,8 +28,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
+// expo-print and expo-sharing are native modules added in Sprint 2.3.
+// They are lazy-loaded inside handleExport (below) so a dev client built
+// before those deps were added still mounts every screen — only the
+// "Generate Evidence Pack" button itself shows an "Update required"
+// alert until the user runs an EAS rebuild.
 import { format, subDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
@@ -172,6 +175,23 @@ export default function EhcpScreen() {
     if (!activeChildId) return;
     setIsExporting(true);
     try {
+      // Lazy-load the native modules. If the dev client was built before
+      // expo-print / expo-sharing were added (Sprint 2.3), the dynamic
+      // import resolves the JS shim but the native bridge is missing —
+      // surface a clear "rebuild required" message instead of crashing.
+      let Print: typeof import('expo-print');
+      let Sharing: typeof import('expo-sharing');
+      try {
+        Print = await import('expo-print');
+        Sharing = await import('expo-sharing');
+      } catch {
+        Alert.alert(
+          'App update required',
+          'PDF export needs an EAS dev client rebuild to include expo-print and expo-sharing. Run `eas build --profile development --platform android` and reinstall the new dev client.',
+        );
+        return;
+      }
+
       // 12-month period is the standard for an annual review.
       const dateTo = format(new Date(), 'yyyy-MM-dd');
       const dateFrom = format(subDays(new Date(), 365), 'yyyy-MM-dd');
@@ -193,10 +213,17 @@ export default function EhcpScreen() {
         );
       }
     } catch (err) {
-      Alert.alert(
-        'Export failed',
-        err instanceof Error ? err.message : 'Unknown error',
-      );
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      // The native module lookup can throw at runtime even after the
+      // dynamic import resolves, if the dev client is stale.
+      if (msg.includes('ExpoPrint') || msg.includes('ExpoSharing')) {
+        Alert.alert(
+          'App update required',
+          'PDF export needs an EAS dev client rebuild. Run `eas build --profile development --platform android` and reinstall the new dev client.',
+        );
+      } else {
+        Alert.alert('Export failed', msg);
+      }
     } finally {
       setIsExporting(false);
     }
