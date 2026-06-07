@@ -229,6 +229,9 @@ export type Database = {
           parent_approved: boolean;
           approved_at: string | null;
           approved_by: string | null;
+          environment: 'HOME' | 'SCHOOL' | 'RESPITE';
+          carer_user_id: string | null;
+          carer_note: string | null;
         };
         Insert: {
           completion_id?: string;
@@ -240,6 +243,9 @@ export type Database = {
           parent_approved?: boolean;
           approved_at?: string | null;
           approved_by?: string | null;
+          environment?: 'HOME' | 'SCHOOL' | 'RESPITE';
+          carer_user_id?: string | null;
+          carer_note?: string | null;
         };
         Update: {
           completed_at?: string | null;
@@ -247,6 +253,9 @@ export type Database = {
           parent_approved?: boolean;
           approved_at?: string | null;
           approved_by?: string | null;
+          environment?: 'HOME' | 'SCHOOL' | 'RESPITE';
+          carer_user_id?: string | null;
+          carer_note?: string | null;
         };
         Relationships: [];
       };
@@ -384,7 +393,8 @@ export type Database = {
           parent_id: string;
           child_id: string;
           email: string;
-          role: 'view_only' | 'approver';
+          role: 'view_only' | 'approver' | 'school_ta';
+          environment: 'HOME' | 'SCHOOL' | 'RESPITE';
           invited_at: string;
           accepted_at: string | null;
         };
@@ -393,12 +403,14 @@ export type Database = {
           parent_id: string;
           child_id: string;
           email: string;
-          role: 'view_only' | 'approver';
+          role: 'view_only' | 'approver' | 'school_ta';
+          environment?: 'HOME' | 'SCHOOL' | 'RESPITE';
           invited_at?: string;
           accepted_at?: string | null;
         };
         Update: {
-          role?: 'view_only' | 'approver';
+          role?: 'view_only' | 'approver' | 'school_ta';
+          environment?: 'HOME' | 'SCHOOL' | 'RESPITE';
           accepted_at?: string | null;
         };
         Relationships: [];
@@ -530,6 +542,8 @@ export type EhcpCategory = EhcpOutcomeRow['category'];
 export type EhcpStatus = EhcpOutcomeRow['status'];
 export type ActivitySetOutcomeTagRow =
   Database['public']['Tables']['activity_set_outcome_tags']['Row'];
+export type CareTeamRole = CareTeamMemberRow['role'];
+export type Environment = CareTeamMemberRow['environment'];
 
 export type ScheduledSetStatus =
   | 'PENDING'
