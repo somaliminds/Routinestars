@@ -53,7 +53,8 @@ interface ParentPrefs {
 interface CareTeamMember {
   member_id: string;
   email: string;
-  role: 'view_only' | 'approver';
+  role: 'view_only' | 'approver' | 'school_ta';
+  environment: 'HOME' | 'SCHOOL' | 'RESPITE';
   invited_at: string;
   accepted_at: string | null;
 }
@@ -68,8 +69,32 @@ const childSchema = z.object({
 
 const inviteSchema = z.object({
   email: z.string().email('Enter a valid email'),
-  role: z.enum(['view_only', 'approver']),
+  role: z.enum(['view_only', 'approver', 'school_ta']),
 });
+
+type InviteRole = z.infer<typeof inviteSchema>['role'];
+
+// Each role's mark + sub + environment it implies.
+const ROLE_META: Record<
+  InviteRole,
+  { label: string; sub: string; environment: 'HOME' | 'SCHOOL' | 'RESPITE' }
+> = {
+  view_only: {
+    label: 'View only',
+    sub: 'Read schedule + progress',
+    environment: 'HOME',
+  },
+  approver: {
+    label: 'Can approve',
+    sub: 'Approve completions',
+    environment: 'HOME',
+  },
+  school_ta: {
+    label: 'School TA',
+    sub: 'Mark activities done at school',
+    environment: 'SCHOOL',
+  },
+};
 
 // ── Emoji palette ─────────────────────────────────────────────────────────────
 const EMOJI_OPTIONS = ['🦁', '🐼', '🐨', '🦊', '🐸', '🐙', '🦄', '🐬', '🐧', '🦋'];
@@ -105,7 +130,7 @@ async function fetchPrefs(userId: string): Promise<ParentPrefs> {
 async function fetchCareTeam(parentId: string, childId: string): Promise<CareTeamMember[]> {
   const { data, error } = await supabase
     .from('care_team_members')
-    .select('member_id, email, role, invited_at, accepted_at')
+    .select('member_id, email, role, environment, invited_at, accepted_at')
     .eq('parent_id', parentId)
     .eq('child_id', childId)
     .order('invited_at');
@@ -733,7 +758,7 @@ function CareTeamSection({
 }) {
   const qc = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'view_only' | 'approver'>('view_only');
+  const [inviteRole, setInviteRole] = useState<InviteRole>('view_only');
   const [inviteError, setInviteError] = useState('');
 
   const { data: members, isLoading } = useQuery({
@@ -743,13 +768,15 @@ function CareTeamSection({
   });
 
   const inviteMutation = useMutation({
-    mutationFn: async ({ email, role }: { email: string; role: 'view_only' | 'approver' }) => {
-      // 1. Create the DB row
+    mutationFn: async ({ email, role }: { email: string; role: InviteRole }) => {
+      const environment = ROLE_META[role].environment;
+      // 1. Create the DB row (environment is derived from role)
       const { error } = await supabase.from('care_team_members').insert({
         parent_id: parentId,
         child_id: childId,
         email,
         role,
+        environment,
       });
       if (error) throw error;
 
@@ -763,6 +790,7 @@ function CareTeamSection({
             parent_name: parentEmail,
             child_name: childName,
             role,
+            environment,
           },
         });
       } catch (emailErr) {
@@ -819,7 +847,8 @@ function CareTeamSection({
               <View className="flex-1">
                 <Text className="font-inter font-semibold text-neutral-900 text-sm">{m.email}</Text>
                 <Text className="font-inter text-neutral-500 text-xs mt-0.5">
-                  {m.role === 'view_only' ? 'View only' : 'Can approve'} ·{' '}
+                  {ROLE_META[m.role]?.label ?? m.role}
+                  {m.environment !== 'HOME' ? ` (${m.environment.toLowerCase()})` : ''} ·{' '}
                   {m.accepted_at ? 'Active' : 'Pending'}
                 </Text>
               </View>
@@ -849,20 +878,30 @@ function CareTeamSection({
         autoCapitalize="none"
       />
 
-      <View className="flex-row gap-2 mb-3">
-        {(['view_only', 'approver'] as const).map((r) => (
-          <TouchableOpacity
-            key={r}
-            onPress={() => setInviteRole(r)}
-            className={`flex-1 py-2 rounded-xl items-center border ${inviteRole === r ? 'bg-brand-primary border-brand-primary' : 'bg-white border-neutral-200'}`}
-          >
-            <Text
-              className={`font-inter text-sm font-semibold ${inviteRole === r ? 'text-white' : 'text-neutral-500'}`}
+      <View className="gap-2 mb-3">
+        {(['view_only', 'approver', 'school_ta'] as const).map((r) => {
+          const meta = ROLE_META[r];
+          const isActive = inviteRole === r;
+          return (
+            <TouchableOpacity
+              key={r}
+              onPress={() => setInviteRole(r)}
+              className={`px-3 py-3 rounded-xl border flex-row items-center ${isActive ? 'bg-brand-light border-brand-primary' : 'bg-white border-neutral-200'}`}
             >
-              {r === 'view_only' ? 'View only' : 'Can approve'}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <View className="flex-1">
+                <Text
+                  className={`font-inter text-sm font-semibold ${isActive ? 'text-brand-dark' : 'text-neutral-900'}`}
+                >
+                  {meta.label}
+                </Text>
+                <Text className="font-inter text-neutral-500 text-xs mt-0.5">{meta.sub}</Text>
+              </View>
+              <Text className={`font-inter ${isActive ? 'text-brand-primary' : 'text-neutral-300'}`}>
+                {isActive ? '●' : '○'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {inviteError ? (
