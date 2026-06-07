@@ -37,7 +37,7 @@ function AuthGuard() {
   const router = useRouter();
   const segments = useSegments();
   const { session, isLoading } = useAuthStore();
-  const [role, setRole] = useState<'parent' | 'child' | null>(null);
+  const [role, setRole] = useState<'parent' | 'child' | 'ta' | null>(null);
   const [roleLoading, setRoleLoading] = useState(false);
   /** True when this parent has the placeholder PIN and must complete setup-pin */
   const [needsPinSetup, setNeedsPinSetup] = useState<boolean | null>(null);
@@ -54,6 +54,46 @@ function AuthGuard() {
     return !hash || hash.includes('placeholder');
   }, []);
 
+  /**
+   * Decide between 'parent' and 'ta' for a user whose users.role is 'parent'.
+   *
+   * Rule: if the user has any school_ta invitations matching their email AND
+   * no child_profiles of their own, treat them as a TA. Auto-accept any pending
+   * invites so their first sign-in flips accepted_at without an extra UI step.
+   *
+   * Users with BOTH (parent + active TA assignments) default to 'parent' for
+   * the MVP. A context-switcher inside the parent app is Sprint 4.5 work.
+   */
+  const detectTaRole = useCallback(
+    async (userId: string, email: string | undefined): Promise<'parent' | 'ta'> => {
+      if (!email) return 'parent';
+
+      // Mark any pending invites for this email as accepted (idempotent).
+      await supabase
+        .from('care_team_members')
+        .update({ accepted_at: new Date().toISOString() })
+        .eq('email', email)
+        .is('accepted_at', null);
+
+      const [{ count: ownChildren }, { count: taInvites }] = await Promise.all([
+        supabase
+          .from('child_profiles')
+          .select('profile_id', { count: 'exact', head: true })
+          .eq('parent_id', userId),
+        supabase
+          .from('care_team_members')
+          .select('member_id', { count: 'exact', head: true })
+          .eq('email', email)
+          .eq('role', 'school_ta')
+          .not('accepted_at', 'is', null),
+      ]);
+
+      if ((taInvites ?? 0) > 0 && (ownChildren ?? 0) === 0) return 'ta';
+      return 'parent';
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!session) {
       setRole(null);
@@ -68,13 +108,16 @@ function AuthGuard() {
           .select('role')
           .eq('user_id', session.user.id)
           .single();
-        const resolvedRole = (userRow?.role as 'parent' | 'child') ?? 'parent';
-        setRole(resolvedRole);
+        const baseRole = (userRow?.role as 'parent' | 'child') ?? 'parent';
 
-        // First-time PIN gate flag.
-        if (resolvedRole === 'parent') {
-          setNeedsPinSetup(await checkPinStatus(session.user.id));
+        // 'parent' may resolve to 'ta' on second look — check care_team_members
+        if (baseRole === 'parent') {
+          const resolved = await detectTaRole(session.user.id, session.user.email);
+          setRole(resolved);
+          // PIN gate only applies to real parents; TAs don't have a PIN.
+          setNeedsPinSetup(resolved === 'parent' ? await checkPinStatus(session.user.id) : false);
         } else {
+          setRole(baseRole);
           setNeedsPinSetup(false);
         }
       } catch {
@@ -84,7 +127,7 @@ function AuthGuard() {
         setRoleLoading(false);
       }
     })();
-  }, [session?.user.id, checkPinStatus]);
+  }, [session?.user.id, session?.user.email, checkPinStatus, detectTaRole]);
 
   // Re-check PIN status whenever the user navigates back into the parent
   // app or out of setup-pin — so the stale needsPinSetup=true flag from
@@ -150,12 +193,16 @@ function AuthGuard() {
 
     if (inAuthGroup && !onWhitelistedAuthRoute) {
       if (role === 'parent') router.replace('/(parent)/dashboard');
+      else if (role === 'ta') router.replace('/(ta)/today');
       else router.replace('/(child)/select-profile');
       return;
     }
 
-    // Children cannot access the parent section
+    // Cross-role guards: keep each role in its own group.
     if (role === 'child' && inParentGroup) router.replace('/(child)/select-profile');
+    if (role === 'ta' && inParentGroup) router.replace('/(ta)/today');
+    if (role === 'ta' && segments[0] === '(child)') router.replace('/(ta)/today');
+    if (role === 'parent' && segments[0] === '(ta)') router.replace('/(parent)/dashboard');
   }, [session, isLoading, role, roleLoading, needsPinSetup, segments, router]);
 
   return null;
@@ -212,6 +259,7 @@ function RootLayout() {
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(child)" />
           <Stack.Screen name="(parent)" />
+          <Stack.Screen name="(ta)" />
           <Stack.Screen name="subscription/success" />
           <Stack.Screen name="subscription/cancel" />
         </Stack>
