@@ -267,8 +267,14 @@ function sanitizeInput(prompt: string): { sanitized: string; stripped: boolean }
   const before = s;
   s = s.replace(EMAIL_RE, '[email]').replace(PHONE_RE, '[phone]');
   if (s !== before) stripped = true;
-  // Collapse weird unicode control chars
-  s = s.replace(/[ --]/g, ' ').trim();
+  // Strip ASCII control characters (U+0000..U+001F) + DEL (U+007F).
+  // Filter via charCodeAt so the regex source never contains literal
+  // control characters — that would make the file binary to Supabase's
+  // function editor (it truncates at the first null byte).
+  s = Array.from(s).filter((c) => {
+    const code = c.charCodeAt(0);
+    return code >= 32 && code !== 127;
+  }).join('').trim();
   return { sanitized: s, stripped };
 }
 
