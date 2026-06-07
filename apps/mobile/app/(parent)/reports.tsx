@@ -49,6 +49,7 @@ interface ReportsData {
   longestStreak: number;
   totalStars: number;
   zones7d: { date: string; zone: Zone | null }[];
+  envSplit7d: { HOME: number; SCHOOL: number; RESPITE: number };
 }
 
 const REWARD_EMOJI: Record<string, string> = {
@@ -169,6 +170,26 @@ async function fetchReports(childId: string): Promise<ReportsData> {
     return { date, zone: zoneByDate.get(date) ?? null };
   });
 
+  // ── Environment split (last 7 days, approved completions only) ──
+  const { data: envRows } = await supabase
+    .from('completions')
+    .select('environment, completed_at, parent_approved')
+    .eq('child_id', childId)
+    .gte('completed_at', `${sevenDaysAgo}T00:00:00`);
+  const envSplit7d = { HOME: 0, SCHOOL: 0, RESPITE: 0 } as Record<
+    'HOME' | 'SCHOOL' | 'RESPITE',
+    number
+  >;
+  for (const r of envRows ?? []) {
+    // Count parent-approved or not-yet-approved (the parent hasn't decided yet) —
+    // exclude only the explicitly-rejected ones (parent_approved=false after
+    // approval ran). The current schema only sets parent_approved=true on
+    // approve, so true+null both count.
+    if (r.parent_approved === false) continue;
+    const env = (r.environment as 'HOME' | 'SCHOOL' | 'RESPITE') ?? 'HOME';
+    envSplit7d[env] = (envSplit7d[env] ?? 0) + 1;
+  }
+
   return {
     dailyRates,
     earnedBadges,
@@ -176,6 +197,7 @@ async function fetchReports(childId: string): Promise<ReportsData> {
     longestStreak: longest,
     totalStars: profile?.total_stars ?? 0,
     zones7d,
+    envSplit7d,
   };
 }
 
@@ -434,6 +456,7 @@ export default function ReportsScreen() {
         </View>
 
         <ZonesStrip days={data.zones7d} />
+        <EnvironmentSplit split={data.envSplit7d} />
         <CompletionChart days={data.dailyRates} />
         <WeeklyHeatmap days={data.dailyRates} />
         <BadgeTimeline badges={data.earnedBadges} />
@@ -455,6 +478,67 @@ const ZONE_EMOJI: Record<Zone, string> = {
   YELLOW: '😬',
   RED: '😡',
 };
+
+function EnvironmentSplit({
+  split,
+}: {
+  split: { HOME: number; SCHOOL: number; RESPITE: number };
+}) {
+  const total = split.HOME + split.SCHOOL + split.RESPITE;
+  const rows: { label: string; emoji: string; count: number; color: string }[] = [
+    { label: 'Home', emoji: '🏠', count: split.HOME, color: '#7C3AED' },
+    { label: 'School', emoji: '🏫', count: split.SCHOOL, color: '#0EA5E9' },
+    { label: 'Respite', emoji: '🌿', count: split.RESPITE, color: '#10B981' },
+  ];
+
+  return (
+    <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+      <Text className="font-inter font-semibold text-neutral-900 text-base mb-1">
+        Where activities got done (last 7 days)
+      </Text>
+      <Text className="font-inter text-neutral-500 text-xs mb-3">
+        Cross-environment activity. Helps you see if school is keeping pace with home.
+      </Text>
+      {total === 0 ? (
+        <Text className="font-inter text-neutral-400 text-xs text-center py-4">
+          No activity recorded this week yet.
+        </Text>
+      ) : (
+        rows.map((row) => {
+          const pct = total > 0 ? Math.round((row.count / total) * 100) : 0;
+          return (
+            <View key={row.label} className="mb-3">
+              <View className="flex-row justify-between mb-1">
+                <Text className="font-inter text-neutral-700 text-sm">
+                  {row.emoji} {row.label}
+                </Text>
+                <Text className="font-inter text-neutral-500 text-xs">
+                  {row.count} · {pct}%
+                </Text>
+              </View>
+              <View
+                style={{
+                  height: 8,
+                  borderRadius: 999,
+                  backgroundColor: '#F3F4F6',
+                  overflow: 'hidden',
+                }}
+              >
+                <View
+                  style={{
+                    width: `${pct}%`,
+                    height: '100%',
+                    backgroundColor: row.color,
+                  }}
+                />
+              </View>
+            </View>
+          );
+        })
+      )}
+    </View>
+  );
+}
 
 function ZonesStrip({ days }: { days: { date: string; zone: Zone | null }[] }) {
   const hasAny = days.some((d) => d.zone !== null);

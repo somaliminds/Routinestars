@@ -39,13 +39,18 @@ interface CompletionDetail {
   starsEarned: number;
   scheduledSetId: string;
   steps: StepSummary[];
+  environment: 'HOME' | 'SCHOOL' | 'RESPITE';
+  carerName: string | null;
+  carerNote: string | null;
 }
 
 async function fetchCompletionDetail(completionId: string): Promise<CompletionDetail | null> {
   // 1. Get completion
   const { data: comp, error: compErr } = await supabase
     .from('completions')
-    .select('completion_id, child_id, scheduled_set_id, stars_earned')
+    .select(
+      'completion_id, child_id, scheduled_set_id, stars_earned, environment, carer_user_id, carer_note',
+    )
     .eq('completion_id', completionId)
     .single();
 
@@ -101,6 +106,17 @@ async function fetchCompletionDetail(completionId: string): Promise<CompletionDe
     }
   }
 
+  // 5. Carer name lookup if this completion came from a TA / non-child actor
+  let carerName: string | null = null;
+  if (comp.carer_user_id) {
+    const { data: carer } = await supabase
+      .from('users')
+      .select('name')
+      .eq('user_id', comp.carer_user_id)
+      .maybeSingle();
+    carerName = carer?.name ?? null;
+  }
+
   return {
     completionId,
     childId: comp.child_id,
@@ -110,6 +126,9 @@ async function fetchCompletionDetail(completionId: string): Promise<CompletionDe
     starsEarned: comp.stars_earned,
     scheduledSetId: comp.scheduled_set_id,
     steps,
+    environment: (comp.environment as 'HOME' | 'SCHOOL' | 'RESPITE') ?? 'HOME',
+    carerName,
+    carerNote: comp.carer_note ?? null,
   };
 }
 
@@ -314,6 +333,28 @@ export default function ApprovalDetailScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Carer banner — only when this completion came from a non-child actor
+            (school TA, grandparent, etc.). Shows who marked it done, where, and
+            their note if any. Gives the parent context before they decide
+            approve/redo. */}
+        {(detail.carerName || detail.environment !== 'HOME') && (
+          <View className="bg-sky-50 rounded-2xl p-4 mb-4 border border-sky-200">
+            <Text className="font-inter font-semibold text-sky-900 text-xs mb-1">
+              {detail.environment === 'SCHOOL'
+                ? '🏫 Marked done at school'
+                : detail.environment === 'RESPITE'
+                  ? '🌿 Marked done at respite'
+                  : '🏠 Marked done at home'}
+              {detail.carerName ? ` by ${detail.carerName}` : ''}
+            </Text>
+            {detail.carerNote && (
+              <Text className="font-inter text-sky-900 text-sm leading-relaxed">
+                "{detail.carerNote}"
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Steps breakdown */}
         <Text className="font-inter font-semibold text-neutral-700 text-sm uppercase tracking-wide mb-3">
