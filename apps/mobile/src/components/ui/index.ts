@@ -3,6 +3,7 @@ export { StepCard } from './StepCard';
 export { ProgressBar } from './ProgressBar';
 export { TimeTimerWedge } from './TimeTimerWedge';
 export { ZonesCheckInModal } from './ZonesCheckInModal';
+export { LockDeviceModal } from './LockDeviceModal';
 export { StarCounter } from './StarCounter';
 export { BadgeDisplay } from './BadgeDisplay';
 export { ApprovalScreen } from './ApprovalScreen';

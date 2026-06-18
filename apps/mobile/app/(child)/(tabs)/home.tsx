@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { LockDeviceModal } from '@/components/ui/LockDeviceModal';
 import {
   View,
   Text,
@@ -145,6 +146,9 @@ export default function ChildHomeScreen() {
     setZonesSuppressed(true);
   }, []);
 
+  // ── Lock device modal ──
+  const [lockVisible, setLockVisible] = useState(false);
+
   const handleCardPress = useCallback(
     (set: ScheduledSetWithDetails) => {
       if (!TAPPABLE_STATUSES.includes(set.status)) return;
@@ -193,7 +197,7 @@ export default function ChildHomeScreen() {
             />
           }
         >
-          {/* ── Parent button (top row) ── */}
+          {/* ── Parent + Lock buttons (top row) ── */}
           <View style={styles.topRow}>
             <TouchableOpacity
               onPress={() => openPinGate()}
@@ -202,6 +206,14 @@ export default function ChildHomeScreen() {
               accessibilityRole="button"
             >
               <Text style={styles.parentBtnText}>← Parent</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setLockVisible(true)}
+              style={styles.lockBtn}
+              accessibilityLabel="Lock the tablet to RoutineStars"
+              accessibilityRole="button"
+            >
+              <Text style={styles.lockBtnText}>🔒 Lock tablet</Text>
             </TouchableOpacity>
           </View>
 
@@ -349,6 +361,9 @@ export default function ChildHomeScreen() {
         onSelect={handleZoneSelect}
         onSkip={handleZoneSkip}
       />
+
+      {/* Lock device walk-through */}
+      <LockDeviceModal visible={lockVisible} onClose={() => setLockVisible(false)} />
     </View>
   );
 }
@@ -374,6 +389,8 @@ const styles = StyleSheet.create({
   centredCard: { alignItems: 'center' },
   topRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingTop: 4,
     paddingBottom: 4,
   },
@@ -394,6 +411,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 13,
     color: '#7C3AED',
+  },
+  lockBtn: {
+    backgroundColor: '#5B21B6',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  lockBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: '#FFFFFF',
   },
   header: {
     paddingTop: 8,
