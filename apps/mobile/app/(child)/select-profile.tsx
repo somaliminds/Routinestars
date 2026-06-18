@@ -20,6 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
 import { useChildStore } from '@/stores/child.store';
+import { useBlockBackButton } from '@/hooks/useBlockBackButton';
 import type { ChildProfileRow } from '@/types/database';
 
 function useChildProfiles(parentId: string | null) {
@@ -39,6 +40,7 @@ function useChildProfiles(parentId: string | null) {
 }
 
 export default function SelectProfileScreen() {
+  useBlockBackButton();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);

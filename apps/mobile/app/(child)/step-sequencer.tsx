@@ -25,8 +25,10 @@ import { useStepSequencer } from '@/hooks/useStepSequencer';
 import { useChildStore } from '@/stores/child.store';
 import { playStepAudio, stopStepAudio } from '@/lib/audio';
 import { supabase } from '@/lib/supabase';
+import { useBlockBackButton } from '@/hooks/useBlockBackButton';
 
 export default function StepSequencerScreen() {
+  useBlockBackButton();
   const router = useRouter();
   const { scheduledSetId } = useLocalSearchParams<{ scheduledSetId: string }>();
   const selectedChild = useChildStore((s) => s.selectedChild);

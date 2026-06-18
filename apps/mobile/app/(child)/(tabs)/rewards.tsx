@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChildStore } from '@/stores/child.store';
 import { useChildRewards, type RewardItem } from '@/hooks/useChildRewards';
+import { useBlockBackButton } from '@/hooks/useBlockBackButton';
 import { BadgeDisplay } from '@/components/ui/BadgeDisplay';
 
 // ── Star meter ──────────────────────────────────────────────────────────────
@@ -174,6 +175,7 @@ function BadgeDetailModal({ badge, onClose }: { badge: RewardItem | null; onClos
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function RewardsScreen() {
+  useBlockBackButton();
   const selectedChild = useChildStore((s) => s.selectedChild);
   const childId = selectedChild?.profile_id ?? null;
 

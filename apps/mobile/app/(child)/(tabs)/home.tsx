@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LockDeviceModal } from '@/components/ui/LockDeviceModal';
+import { useBlockBackButton } from '@/hooks/useBlockBackButton';
 import {
   View,
   Text,
@@ -72,6 +73,7 @@ function getGreeting(): string {
 }
 
 export default function ChildHomeScreen() {
+  useBlockBackButton();
   const router = useRouter();
   const queryClient = useQueryClient();
   const selectedChild = useChildStore((s) => s.selectedChild);
