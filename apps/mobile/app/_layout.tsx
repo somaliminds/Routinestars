@@ -1,6 +1,7 @@
 import '../global.css';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-goog
 import { useAuthStore } from '@/stores/auth.store';
 import { useVoiceStore } from '@/stores/voice.store';
 import { useSyncPending } from '@/hooks/useSyncPending';
+import { usePinGate } from '@/stores/pinGate.store';
 import { supabase } from '@/lib/supabase';
 import { initSentry, setSentryUser, Sentry } from '@/lib/sentry';
 
@@ -41,6 +43,9 @@ function AuthGuard() {
   const [roleLoading, setRoleLoading] = useState(false);
   /** True when this parent has the placeholder PIN and must complete setup-pin */
   const [needsPinSetup, setNeedsPinSetup] = useState<boolean | null>(null);
+  // Sprint 5.3: kick the parent out of parent area after app-backgrounding.
+  const requireOnResume = usePinGate((s) => s.requireOnResume);
+  const clearRequireOnResume = usePinGate((s) => s.clearRequireOnResume);
 
   // Read pin_hash for a parent and decide if real PIN exists yet.
   const checkPinStatus = useCallback(async (userId: string): Promise<boolean> => {
@@ -158,6 +163,23 @@ function AuthGuard() {
     const PUBLIC_ROUTES = new Set(['privacy-policy', 'terms', 'auth']);
     if (PUBLIC_ROUTES.has(segments[0] as string)) return;
 
+    // Sprint 5.3: PIN re-auth on app resume. If the parent backgrounded
+    // the app while in parent area and just came back, route them out
+    // to the child profile picker — they have to tap "← Parent" and
+    // re-enter the PIN to get back. This prevents a child grabbing the
+    // tablet during a brief parent-app break from seeing or doing
+    // anything parent-only. TAs and children don't have a PIN, so we
+    // just clear the flag for them without rerouting.
+    if (requireOnResume) {
+      if (role === 'parent' && inParentGroup) {
+        clearRequireOnResume();
+        router.replace('/(child)/select-profile');
+        return;
+      }
+      // Either not in parent area or wrong role for re-auth — just clear.
+      clearRequireOnResume();
+    }
+
     // These (auth) routes must remain reachable WHILE signed in.
     const AUTH_GROUP_WHITELIST = new Set([
       'forgot-pin',
@@ -201,7 +223,7 @@ function AuthGuard() {
     if (role === 'ta' && inParentGroup) router.replace('/(ta)/today');
     if (role === 'ta' && segments[0] === '(child)') router.replace('/(ta)/today');
     if (role === 'parent' && segments[0] === '(ta)') router.replace('/(parent)/dashboard');
-  }, [session, isLoading, role, roleLoading, needsPinSetup, segments, router]);
+  }, [session, isLoading, role, roleLoading, needsPinSetup, segments, router, requireOnResume, clearRequireOnResume]);
 
   return null;
 }
@@ -210,11 +232,33 @@ function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const hydrateVoice = useVoiceStore((s) => s.hydrate);
   const session = useAuthStore((s) => s.session);
+  const markRequireOnResume = usePinGate((s) => s.markRequireOnResume);
   useSyncPending(!!session);
 
   useEffect(() => {
     void hydrateVoice();
   }, [hydrateVoice]);
+
+  // Sprint 5.3: when the app is backgrounded (any reason — notification
+  // tray pull-down, app-switcher pop, screen-off), mark the PIN gate as
+  // require-on-resume. The next time something calls usePinGate.open(),
+  // it'll show the modal even if the parent had just authenticated. We
+  // do this unconditionally rather than only-in-child-mode because we
+  // don't want the gate to be soft-bypassable by tabbing away from the
+  // parent app and back.
+  const appStateRef = useRef(AppState.currentState);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      const prev = appStateRef.current;
+      appStateRef.current = next;
+      // Only flip the require flag on the active -> background transition.
+      // Coming back to active uses the flag, doesn't set it.
+      if (prev === 'active' && next !== 'active') {
+        markRequireOnResume();
+      }
+    });
+    return () => sub.remove();
+  }, [markRequireOnResume]);
 
   // Tag Sentry events with the current user (so we know WHO hit each crash)
   useEffect(() => {
