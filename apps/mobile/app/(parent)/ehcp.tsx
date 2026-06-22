@@ -36,14 +36,10 @@ import { z } from 'zod';
 import { format, subDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSubscriptionStore, canUseEHCP, requiredTierFor } from '@/stores/subscription.store';
 import { useResponsive } from '@/hooks/useResponsive';
 import { buildEvidencePack, renderEvidencePackHtml } from '@/lib/ehcp-report';
-import type {
-  ChildProfileRow,
-  EhcpOutcomeRow,
-  EhcpCategory,
-  EhcpStatus,
-} from '@/types/database';
+import type { ChildProfileRow, EhcpOutcomeRow, EhcpCategory, EhcpStatus } from '@/types/database';
 
 const CATEGORIES: { value: EhcpCategory; label: string; emoji: string }[] = [
   { value: 'COMMUNICATION', label: 'Communication', emoji: '💬' },
@@ -92,9 +88,10 @@ async function fetchOutcomes(childId: string): Promise<EhcpOutcomeRow[]> {
   return (data ?? []) as EhcpOutcomeRow[];
 }
 
-const CATEGORY_BY_VALUE = Object.fromEntries(
-  CATEGORIES.map((c) => [c.value, c]),
-) as Record<EhcpCategory, (typeof CATEGORIES)[number]>;
+const CATEGORY_BY_VALUE = Object.fromEntries(CATEGORIES.map((c) => [c.value, c])) as Record<
+  EhcpCategory,
+  (typeof CATEGORIES)[number]
+>;
 
 export default function EhcpScreen() {
   const router = useRouter();
@@ -255,6 +252,75 @@ export default function EhcpScreen() {
 
   const activeChild = children.find((c) => c.profile_id === activeChildId);
 
+  // Hard paywall — EHCP outcomes are Family+. Free/Starter who deep-link
+  // here from Settings see a call-to-action that routes to Subscription.
+  // (Placed after every hook call to keep Rules of Hooks satisfied.)
+  const subscription = useSubscriptionStore((s) => s.subscription);
+  const ehcpAllowed = canUseEHCP(subscription);
+  if (!ehcpAllowed) {
+    const req = requiredTierFor('canUseEHCP');
+    return (
+      <View style={styles.screen}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Text style={styles.backText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>EHCP Outcomes</Text>
+            <View style={{ width: 60 }} />
+          </View>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+            <Text style={{ fontSize: 56 }}>📋</Text>
+            <Text
+              style={{
+                fontFamily: 'Inter_600SemiBold',
+                fontSize: 20,
+                color: '#111827',
+                textAlign: 'center',
+                marginTop: 16,
+              }}
+            >
+              EHCP outcomes + evidence packs
+            </Text>
+            <Text
+              style={{
+                fontFamily: 'Inter_400Regular',
+                fontSize: 14,
+                color: '#4B5563',
+                textAlign: 'center',
+                marginTop: 8,
+              }}
+            >
+              Map activities to EHCP outcomes and generate annual review evidence packs
+              automatically. Available on {req.tierName} ({req.priceDisplay}).
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.replace('/(parent)/subscription')}
+              style={{
+                backgroundColor: '#7C3AED',
+                borderRadius: 16,
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                marginTop: 24,
+              }}
+              accessibilityRole="button"
+            >
+              <Text
+                style={{
+                  fontFamily: 'Inter_600SemiBold',
+                  fontSize: 14,
+                  color: 'white',
+                }}
+              >
+                See {req.tierName} plan
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }}>
@@ -274,8 +340,8 @@ export default function EhcpScreen() {
           }}
         >
           <Text style={styles.intro}>
-            Set up the outcomes from your child's EHCP. At review time, generate
-            a one-tap evidence pack showing progress against each outcome.
+            Set up the outcomes from your child's EHCP. At review time, generate a one-tap evidence
+            pack showing progress against each outcome.
           </Text>
 
           {/* Child switcher */}
@@ -328,8 +394,8 @@ export default function EhcpScreen() {
                   <Text style={styles.emptyIcon}>📋</Text>
                   <Text style={styles.emptyTitle}>No outcomes yet</Text>
                   <Text style={styles.emptySub}>
-                    Tap "Add outcome" below to start. You'll need your child's
-                    EHCP document handy — copy each outcome verbatim.
+                    Tap "Add outcome" below to start. You'll need your child's EHCP document handy —
+                    copy each outcome verbatim.
                   </Text>
                 </View>
               )}
@@ -349,8 +415,8 @@ export default function EhcpScreen() {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.exportTitle}>Generate Evidence Pack</Text>
                         <Text style={styles.exportSub}>
-                          12-month PDF of progress against every outcome.
-                          One tap, ready for annual review.
+                          12-month PDF of progress against every outcome. One tap, ready for annual
+                          review.
                         </Text>
                       </View>
                       <Text style={styles.exportArrow}>→</Text>
@@ -373,11 +439,7 @@ export default function EhcpScreen() {
                       ({list.length})
                     </Text>
                     {list.map((o) => (
-                      <OutcomeCard
-                        key={o.outcome_id}
-                        outcome={o}
-                        onEdit={() => setEditing(o)}
-                      />
+                      <OutcomeCard key={o.outcome_id} outcome={o} onEdit={() => setEditing(o)} />
                     ))}
                   </View>
                 );
@@ -437,9 +499,7 @@ function OutcomeCard({ outcome, onEdit }: { outcome: EhcpOutcomeRow; onEdit: () 
         <Text style={styles.cardCategory}>
           {cat.emoji} {cat.label}
         </Text>
-        {outcome.target_date && (
-          <Text style={styles.cardDate}>Target: {outcome.target_date}</Text>
-        )}
+        {outcome.target_date && <Text style={styles.cardDate}>Target: {outcome.target_date}</Text>}
       </View>
       <Text style={styles.cardText} numberOfLines={3}>
         {outcome.outcome_text}
@@ -533,10 +593,7 @@ function OutcomeEditorModal({
             {CATEGORIES.map((c) => (
               <TouchableOpacity
                 key={c.value}
-                style={[
-                  styles.categoryChip,
-                  category === c.value && styles.categoryChipActive,
-                ]}
+                style={[styles.categoryChip, category === c.value && styles.categoryChipActive]}
                 onPress={() => setCategory(c.value)}
               >
                 <Text style={{ fontSize: 16 }}>{c.emoji}</Text>
@@ -563,9 +620,7 @@ function OutcomeEditorModal({
             numberOfLines={4}
             maxLength={1000}
           />
-          {errors.outcome_text && (
-            <Text style={styles.fieldError}>{errors.outcome_text}</Text>
-          )}
+          {errors.outcome_text && <Text style={styles.fieldError}>{errors.outcome_text}</Text>}
 
           {/* Target date */}
           <Text style={styles.fieldLabel}>Target review date (optional)</Text>
@@ -587,12 +642,7 @@ function OutcomeEditorModal({
                 style={[styles.statusChip, status === s && styles.statusChipActive]}
                 onPress={() => setStatus(s)}
               >
-                <Text
-                  style={[
-                    styles.statusChipText,
-                    status === s && styles.statusChipTextActive,
-                  ]}
-                >
+                <Text style={[styles.statusChipText, status === s && styles.statusChipTextActive]}>
                   {s === 'ACTIVE' ? 'Active' : s === 'ACHIEVED' ? 'Achieved' : 'Discontinued'}
                 </Text>
               </TouchableOpacity>

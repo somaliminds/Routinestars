@@ -28,6 +28,7 @@ import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSubscriptionStore, canUseAI, requiredTierFor } from '@/stores/subscription.store';
 
 type AgeBand = '4-6' | '7-10' | '11-14';
 type Provider = 'anthropic' | 'openai';
@@ -60,9 +61,7 @@ interface DraftRoutine {
   steps: DraftStep[];
 }
 
-type GenerateResult =
-  | { kind: 'draft'; draft: DraftRoutine }
-  | { kind: 'refusal'; reason: string };
+type GenerateResult = { kind: 'draft'; draft: DraftRoutine } | { kind: 'refusal'; reason: string };
 
 const REFUSAL_MESSAGES: Record<string, string> = {
   advice_requested:
@@ -106,6 +105,8 @@ export default function AIGenerateScreen() {
   const session = useAuthStore((s) => s.session);
   const userId = session?.user.id ?? null;
   const qc = useQueryClient();
+  const subscription = useSubscriptionStore((s) => s.subscription);
+  const aiAllowed = canUseAI(subscription);
 
   const [childFirstName, setChildFirstName] = useState('');
   const [ageBand, setAgeBand] = useState<AgeBand>('7-10');
@@ -195,7 +196,10 @@ export default function AIGenerateScreen() {
   const handleSubmit = useCallback(() => {
     const trimmed = prompt.trim();
     if (trimmed.length < 10) {
-      Alert.alert('Tell us more', 'Please describe your child and the routine in at least 10 characters.');
+      Alert.alert(
+        'Tell us more',
+        'Please describe your child and the routine in at least 10 characters.',
+      );
       return;
     }
     if (!childFirstName.trim()) {
@@ -225,6 +229,46 @@ export default function AIGenerateScreen() {
     });
   }, []);
 
+  // Hard paywall — Family+ only. Free/Starter who deep-link here see a
+  // call-to-action that routes to the Subscription page instead of the
+  // generator UI. Mirrors the locked card on activity-sets.tsx.
+  // (Placed after all hook calls so we don't violate Rules of Hooks.)
+  if (!aiAllowed) {
+    const req = requiredTierFor('canUseAI');
+    return (
+      <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+        <View className="flex-row items-center px-4 pt-3 pb-2 border-b border-neutral-200 bg-white">
+          <TouchableOpacity onPress={() => router.back()} accessibilityRole="button">
+            <Text className="font-inter text-brand-primary text-sm font-semibold">‹ Back</Text>
+          </TouchableOpacity>
+          <Text className="flex-1 font-inter font-semibold text-center text-neutral-900">
+            AI Generator
+          </Text>
+          <View style={{ width: 50 }} />
+        </View>
+        <View className="flex-1 items-center justify-center px-8">
+          <Text style={{ fontSize: 56 }}>✨</Text>
+          <Text className="font-inter font-bold text-neutral-900 text-xl text-center mt-4">
+            AI routine generation
+          </Text>
+          <Text className="font-inter text-neutral-600 text-sm text-center mt-2">
+            Describe your child and the routine — Claude or GPT writes the first draft and you edit
+            before saving. Available on {req.tierName} ({req.priceDisplay}).
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.replace('/(parent)/subscription')}
+            className="bg-brand-primary rounded-2xl px-6 py-3 mt-6"
+            accessibilityRole="button"
+          >
+            <Text className="font-inter font-semibold text-white text-sm">
+              See {req.tierName} plan
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }}>
@@ -247,9 +291,8 @@ export default function AIGenerateScreen() {
             {/* Disclaimer banner — visible above the prompt every time */}
             <View style={styles.disclaimer}>
               <Text style={styles.disclaimerText}>
-                The AI drafts a routine you review and save. It can't see your
-                child's full name, photo, or any medical history — only what
-                you type below.
+                The AI drafts a routine you review and save. It can't see your child's full name,
+                photo, or any medical history — only what you type below.
               </Text>
             </View>
 
@@ -295,7 +338,9 @@ export default function AIGenerateScreen() {
                       >
                         <Text style={styles.providerEmoji}>{meta.emoji}</Text>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.providerLabel, isActive && styles.providerLabelActive]}>
+                          <Text
+                            style={[styles.providerLabel, isActive && styles.providerLabelActive]}
+                          >
                             {meta.label}
                           </Text>
                           <Text style={styles.providerSub}>{meta.sub}</Text>
@@ -308,9 +353,8 @@ export default function AIGenerateScreen() {
 
                 <Text style={styles.label}>Describe your child + the routine</Text>
                 <Text style={styles.helper}>
-                  E.g. "Bedtime routine for my 7-year-old who hates teeth
-                  brushing and loves dinosaurs. We get stuck on pyjamas every
-                  night."
+                  E.g. "Bedtime routine for my 7-year-old who hates teeth brushing and loves
+                  dinosaurs. We get stuck on pyjamas every night."
                 </Text>
                 <TextInput
                   style={[styles.input, styles.multilineInput]}
@@ -334,9 +378,7 @@ export default function AIGenerateScreen() {
                   {generateMutation.isPending ? (
                     <>
                       <ActivityIndicator color="#FFFFFF" />
-                      <Text style={[styles.generateBtnText, { marginLeft: 8 }]}>
-                        Drafting…
-                      </Text>
+                      <Text style={[styles.generateBtnText, { marginLeft: 8 }]}>Drafting…</Text>
                     </>
                   ) : (
                     <Text style={styles.generateBtnText}>✨ Generate Draft</Text>
@@ -434,8 +476,7 @@ export default function AIGenerateScreen() {
                 <TouchableOpacity
                   style={[
                     styles.saveBtn,
-                    (saveMutation.isPending || draft.steps.length === 0) &&
-                      styles.saveBtnDisabled,
+                    (saveMutation.isPending || draft.steps.length === 0) && styles.saveBtnDisabled,
                   ]}
                   onPress={() => saveMutation.mutate(draft)}
                   disabled={saveMutation.isPending || draft.steps.length === 0}

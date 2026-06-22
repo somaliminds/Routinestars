@@ -239,7 +239,8 @@ function ChildModal({
     const digits = text.replace(/\D/g, '').slice(0, 8);
     let formatted = digits;
     if (digits.length > 4) formatted = `${digits.slice(0, 4)}-${digits.slice(4)}`;
-    if (digits.length > 6) formatted = `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+    if (digits.length > 6)
+      formatted = `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
     setDob(formatted);
   };
 
@@ -359,8 +360,8 @@ function ChildModal({
                     lineHeight: 16,
                   }}
                 >
-                  Show only the current activity and a preview of what's next,
-                  instead of the full day. Reduces overwhelm.
+                  Show only the current activity and a preview of what's next, instead of the full
+                  day. Reduces overwhelm.
                 </Text>
               </View>
               <Switch
@@ -541,8 +542,8 @@ function VoiceSection() {
     return (
       <View className="bg-white rounded-2xl px-5 py-4 mb-2 shadow-sm">
         <Text className="font-inter text-neutral-500 text-sm">
-          No English voices available on this device. Install a voice via
-          Settings → Language & input → Text-to-speech.
+          No English voices available on this device. Install a voice via Settings → Language &
+          input → Text-to-speech.
         </Text>
       </View>
     );
@@ -720,9 +721,8 @@ function AIFeaturesSection({ userId }: { userId: string }) {
             AI Routine Generator
           </Text>
           <Text className="font-inter text-neutral-500 text-xs mt-0.5">
-            Describe your child and we'll draft a routine you can review,
-            edit, and save. Drafts never appear on the child's screen
-            without your explicit save.
+            Describe your child and we'll draft a routine you can review, edit, and save. Drafts
+            never appear on the child's screen without your explicit save.
           </Text>
         </View>
         <Switch
@@ -734,10 +734,10 @@ function AIFeaturesSection({ userId }: { userId: string }) {
       </View>
       <View className="bg-amber-50 rounded-2xl px-4 py-3 mb-2 border border-amber-200">
         <Text className="font-inter text-amber-900 text-xs leading-relaxed">
-          ⚠️ This feature is rolling out gradually. Toggling it on registers
-          your interest; the generator goes live in a future update. We never
-          send your child's full name, photo, medical history, or DOB to the
-          AI provider — only a first name, age band, and the prompt you write.
+          ⚠️ This feature is rolling out gradually. Toggling it on registers your interest; the
+          generator goes live in a future update. We never send your child's full name, photo,
+          medical history, or DOB to the AI provider — only a first name, age band, and the prompt
+          you write.
         </Text>
       </View>
     </View>
@@ -896,7 +896,9 @@ function CareTeamSection({
                 </Text>
                 <Text className="font-inter text-neutral-500 text-xs mt-0.5">{meta.sub}</Text>
               </View>
-              <Text className={`font-inter ${isActive ? 'text-brand-primary' : 'text-neutral-300'}`}>
+              <Text
+                className={`font-inter ${isActive ? 'text-brand-primary' : 'text-neutral-300'}`}
+              >
                 {isActive ? '●' : '○'}
               </Text>
             </TouchableOpacity>
@@ -932,7 +934,6 @@ export default function SettingsScreen() {
   const { activeChild } = useParentStore();
   const subscription = useSubscriptionStore((s) => s.subscription);
   const qc = useQueryClient();
-
 
   const [childModal, setChildModal] = useState<{ visible: boolean; editing: ChildProfile | null }>({
     visible: false,
@@ -1009,7 +1010,6 @@ export default function SettingsScreen() {
     );
   };
 
-
   return (
     <SafeAreaView className="flex-1 bg-[#F5F0FF]">
       <View className="px-5 pt-6 pb-4">
@@ -1074,8 +1074,8 @@ export default function SettingsScreen() {
               Manage outcomes
             </Text>
             <Text className="font-inter text-neutral-500 text-xs mt-0.5">
-              Set up the outcomes from your child's EHCP so review-time
-              evidence packs generate automatically.
+              Set up the outcomes from your child's EHCP so review-time evidence packs generate
+              automatically.
             </Text>
           </View>
           <Text className="font-inter text-neutral-400 ml-2">›</Text>
@@ -1160,9 +1160,7 @@ export default function SettingsScreen() {
             accessibilityLabel="Trigger test crash (dev only)"
             accessibilityRole="button"
           >
-            <Text className="font-inter text-neutral-400 text-xs">
-              [dev] Trigger test crash
-            </Text>
+            <Text className="font-inter text-neutral-400 text-xs">[dev] Trigger test crash</Text>
           </TouchableOpacity>
         )}
       </ScrollView>

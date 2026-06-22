@@ -3,7 +3,13 @@
  *
  * Creates a Stripe Customer Portal session for self-serve billing management.
  * Body: { userId: string }
- * Returns: { url: string }
+ * Returns: { url: string } on success, { error: string } on failure.
+ *
+ * The most common failure (silent until you actually call it) is the
+ * Stripe Customer Portal not being activated in the Stripe Dashboard.
+ * Operator fix: open https://dashboard.stripe.com/test/settings/billing/portal
+ * (or /settings/billing/portal in live mode), confirm the defaults, click
+ * Save. After that, this function works forever.
  */
 import Stripe from 'npm:stripe@17';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.99.0';
@@ -20,6 +26,30 @@ const supabase = createClient(
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
+/**
+ * Turn a raw Stripe error into something the parent can act on, without
+ * leaking internals. Falls back to the raw message for unknown shapes.
+ */
+function explainStripeError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  // The single most common operator-side failure.
+  if (
+    message.includes('No configuration provided') ||
+    message.includes('customer portal settings')
+  ) {
+    return (
+      'Stripe Customer Portal is not yet activated for this account. ' +
+      'An admin needs to open the Stripe Dashboard → Settings → Billing → ' +
+      'Customer Portal, confirm the defaults and click Save. After that, ' +
+      'this button will work.'
+    );
+  }
+  if (message.includes('No such customer')) {
+    return 'Your Stripe customer record could not be found. Please contact support.';
+  }
+  return `Could not open billing portal: ${message}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
@@ -28,7 +58,17 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { userId } = await req.json() as { userId?: string };
+  let userId: string | undefined;
+  try {
+    const body = (await req.json()) as { userId?: string };
+    userId = body.userId;
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400,
+      headers: JSON_HEADERS,
+    });
+  }
+
   if (!userId) {
     return new Response(JSON.stringify({ error: 'userId required' }), {
       status: 400,
@@ -40,22 +80,33 @@ Deno.serve(async (req) => {
     .from('subscriptions')
     .select('stripe_customer_id')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   if (!sub?.stripe_customer_id) {
-    return new Response(JSON.stringify({ error: 'No subscription found' }), {
-      status: 404,
+    return new Response(
+      JSON.stringify({
+        error:
+          'No Stripe customer on file yet. Upgrade to a paid plan first — ' +
+          'billing management appears here once a checkout has completed.',
+      }),
+      { status: 404, headers: JSON_HEADERS },
+    );
+  }
+
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: sub.stripe_customer_id as string,
+      return_url: 'routinestars://settings',
+    });
+    return new Response(JSON.stringify({ url: session.url }), {
+      status: 200,
+      headers: JSON_HEADERS,
+    });
+  } catch (err) {
+    console.error('customer-portal: stripe.billingPortal.sessions.create failed', err);
+    return new Response(JSON.stringify({ error: explainStripeError(err) }), {
+      status: 500,
       headers: JSON_HEADERS,
     });
   }
-
-  const session = await stripe.billingPortal.sessions.create({
-    customer: sub.stripe_customer_id as string,
-    return_url: 'routinestars://settings',
-  });
-
-  return new Response(JSON.stringify({ url: session.url }), {
-    status: 200,
-    headers: JSON_HEADERS,
-  });
 });

@@ -20,10 +20,16 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { format, subDays, startOfWeek, addDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useParentStore } from '@/stores/parent.store';
+import {
+  useSubscriptionStore,
+  canAccessReports,
+  requiredTierFor,
+} from '@/stores/subscription.store';
 import type { Zone } from '@/types/database';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -371,19 +377,57 @@ function BadgeTimeline({ badges }: { badges: BadgeEarned[] }) {
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function ReportsScreen() {
+  const router = useRouter();
   const { activeChild } = useParentStore();
   const childId = activeChild?.profile_id ?? null;
+  const subscription = useSubscriptionStore((s) => s.subscription);
+  const reportsAllowed = canAccessReports(subscription);
 
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['reports', childId],
     queryFn: () => fetchReports(childId!),
-    enabled: !!childId,
+    enabled: !!childId && reportsAllowed, // don't fetch what we can't show
     staleTime: 5 * 60_000,
   });
 
   const onRefresh = useCallback(() => {
     void refetch();
   }, [refetch]);
+
+  // Hard paywall — Free tier is locked out of Reports entirely.
+  // Comes before the activeChild + loading guards because the tier
+  // decision is independent of whether a child is selected.
+  if (!reportsAllowed) {
+    const req = requiredTierFor('canAccessReports');
+    return (
+      <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+        <View className="px-5 pt-6 pb-4">
+          <Text className="font-inter font-bold text-neutral-900" style={{ fontSize: 24 }}>
+            Reports
+          </Text>
+        </View>
+        <View className="flex-1 items-center justify-center px-8">
+          <Text style={{ fontSize: 56 }}>📊</Text>
+          <Text className="font-inter font-bold text-neutral-900 text-xl text-center mt-4">
+            Progress reports
+          </Text>
+          <Text className="font-inter text-neutral-600 text-sm text-center mt-2">
+            Completion rates, weekly heatmaps, badge timelines, and streak history. Available on{' '}
+            {req.tierName} ({req.priceDisplay}).
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/(parent)/subscription')}
+            className="bg-brand-primary rounded-2xl px-6 py-3 mt-6"
+            accessibilityRole="button"
+          >
+            <Text className="font-inter font-semibold text-white text-sm">
+              See {req.tierName} plan
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!activeChild) {
     return (
@@ -479,11 +523,7 @@ const ZONE_EMOJI: Record<Zone, string> = {
   RED: '😡',
 };
 
-function EnvironmentSplit({
-  split,
-}: {
-  split: { HOME: number; SCHOOL: number; RESPITE: number };
-}) {
+function EnvironmentSplit({ split }: { split: { HOME: number; SCHOOL: number; RESPITE: number } }) {
   const total = split.HOME + split.SCHOOL + split.RESPITE;
   const rows: { label: string; emoji: string; count: number; color: string }[] = [
     { label: 'Home', emoji: '🏠', count: split.HOME, color: '#7C3AED' },

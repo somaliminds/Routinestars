@@ -1,29 +1,23 @@
 /**
- * Subscription — Sprint 4.1
+ * Subscription — Sprint 4.1 + Phase 1 pricing reshape.
  *
  * Paywall / plan management screen:
- *  - Shows current plan + status
- *  - Plan cards: Free / Starter / Family / School
+ *  - Monthly / Annual cycle toggle (annual saves ~17% across the board)
+ *  - Plan cards: Free / Starter / Family / Enterprise
+ *  - Family marked Most Popular — the revenue pillar
  *  - Subscribe button opens Stripe Checkout via in-app browser
  *  - Manage billing button opens Stripe Customer Portal
  *
- * Spec: Section 8 — SaaS Pricing
+ * Spec: Section 8 — SaaS Pricing (updated 2026-06)
  */
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Linking } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
-import { STRIPE_PLANS, type PlanKey } from '@/lib/stripe';
+import { STRIPE_PLANS, type PlanKey, type BillingCycle } from '@/lib/stripe';
 import { getPlanKey } from '@/stores/subscription.store';
 import type { SubscriptionRow } from '@/types/database';
 
@@ -37,15 +31,74 @@ async function fetchSubscription(userId: string): Promise<SubscriptionRow | null
   return data ?? null;
 }
 
+// ── Cycle toggle ──────────────────────────────────────────────────────────────
+function CycleToggle({
+  cycle,
+  onChange,
+}: {
+  cycle: BillingCycle;
+  onChange: (c: BillingCycle) => void;
+}) {
+  return (
+    <View className="bg-white rounded-2xl p-1 flex-row mb-4 shadow-sm self-center">
+      <TouchableOpacity
+        onPress={() => onChange('monthly')}
+        className={`px-5 py-2 rounded-xl ${cycle === 'monthly' ? 'bg-brand-primary' : ''}`}
+        accessibilityRole="button"
+        accessibilityState={{ selected: cycle === 'monthly' }}
+      >
+        <Text
+          className={`font-inter font-semibold text-sm ${
+            cycle === 'monthly' ? 'text-white' : 'text-neutral-500'
+          }`}
+        >
+          Monthly
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => onChange('annual')}
+        className={`px-5 py-2 rounded-xl flex-row items-center gap-2 ${
+          cycle === 'annual' ? 'bg-brand-primary' : ''
+        }`}
+        accessibilityRole="button"
+        accessibilityState={{ selected: cycle === 'annual' }}
+      >
+        <Text
+          className={`font-inter font-semibold text-sm ${
+            cycle === 'annual' ? 'text-white' : 'text-neutral-500'
+          }`}
+        >
+          Annual
+        </Text>
+        <View
+          className={`rounded-full px-2 py-0.5 ${
+            cycle === 'annual' ? 'bg-white/25' : 'bg-accent-success/15'
+          }`}
+        >
+          <Text
+            className={`font-inter font-bold text-[10px] ${
+              cycle === 'annual' ? 'text-white' : 'text-accent-success'
+            }`}
+          >
+            SAVE 17%
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ── Plan card ─────────────────────────────────────────────────────────────────
 function PlanCard({
   planKey,
+  cycle,
   isCurrent,
   isPopular,
   onSelect,
   loading,
 }: {
   planKey: PlanKey;
+  cycle: BillingCycle;
   isCurrent: boolean;
   isPopular: boolean;
   onSelect: () => void;
@@ -53,6 +106,17 @@ function PlanCard({
 }) {
   const plan = STRIPE_PLANS[planKey];
   const isFree = planKey === 'FREE';
+
+  // Free has no annual variant — always show Free.
+  // Annual cycle uses plan.annual.* fields; falls back to monthly for tiers
+  // without an annual price (none currently, but defensive).
+  const showAnnual = cycle === 'annual' && plan.annual !== null;
+  const priceDisplay = showAnnual ? plan.annual!.priceDisplay : plan.priceDisplay;
+  const savingsBadge = showAnnual ? plan.annual!.savingsDisplay : null;
+  const monthlyEquivalent =
+    showAnnual && plan.annual
+      ? `£${(plan.annual.price / 100 / 12).toFixed(2)}/mo billed annually`
+      : null;
 
   return (
     <View
@@ -76,12 +140,29 @@ function PlanCard({
         >
           {plan.name}
         </Text>
-        <Text
-          className={`font-inter font-bold text-2xl ${isCurrent ? 'text-white' : 'text-neutral-900'}`}
-        >
-          {'priceDisplay' in plan ? plan.priceDisplay : 'Free'}
-        </Text>
+        <View className="items-end">
+          <Text
+            className={`font-inter font-bold text-2xl ${isCurrent ? 'text-white' : 'text-neutral-900'}`}
+          >
+            {priceDisplay}
+          </Text>
+          {monthlyEquivalent && (
+            <Text
+              className={`font-inter text-[11px] ${isCurrent ? 'text-white/80' : 'text-neutral-400'}`}
+            >
+              {monthlyEquivalent}
+            </Text>
+          )}
+        </View>
       </View>
+
+      {savingsBadge && !isCurrent && (
+        <View className="bg-accent-success/15 rounded-full px-2 py-0.5 self-start mb-1">
+          <Text className="font-inter font-bold text-accent-success text-[10px]">
+            {savingsBadge}
+          </Text>
+        </View>
+      )}
 
       {plan.features.map((f) => (
         <View key={f} className="flex-row items-center mt-1.5">
@@ -110,7 +191,7 @@ function PlanCard({
                 isCurrent ? 'text-brand-primary' : 'text-white'
               }`}
             >
-              {isCurrent ? 'Current Plan' : `Upgrade to ${plan.name}`}
+              {isCurrent ? 'Current Plan' : `Choose ${plan.name}`}
             </Text>
           )}
         </TouchableOpacity>
@@ -125,6 +206,7 @@ export default function SubscriptionScreen() {
   const userId = session?.user.id ?? '';
   const [checkoutLoading, setCheckoutLoading] = useState<PlanKey | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [cycle, setCycle] = useState<BillingCycle>('annual'); // default annual — nudge toward higher LTV
 
   const { data: subscription, refetch } = useQuery({
     queryKey: ['subscription', userId],
@@ -137,8 +219,17 @@ export default function SubscriptionScreen() {
 
   const handleUpgrade = async (planKey: PlanKey) => {
     const plan = STRIPE_PLANS[planKey];
-    if (!('stripePriceId' in plan) || !plan.stripePriceId) {
-      Alert.alert('Configuration error', 'Price ID not configured for this plan.');
+    // Pick monthly or annual price ID based on selected cycle.
+    const priceId =
+      cycle === 'annual' && plan.annual?.stripePriceId
+        ? plan.annual.stripePriceId
+        : plan.stripePriceId;
+
+    if (!priceId) {
+      Alert.alert(
+        'Configuration error',
+        `Stripe price ID not configured for ${plan.name} (${cycle}). Add the env var and redeploy.`,
+      );
       return;
     }
 
@@ -147,10 +238,8 @@ export default function SubscriptionScreen() {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
           userId,
-          priceId: plan.stripePriceId,
+          priceId,
           // Let the server use its HTTPS → deep-link bridge defaults.
-          // Custom schemes passed directly here are unreliable as Stripe
-          // success/cancel URLs.
         },
       });
 
@@ -160,7 +249,6 @@ export default function SubscriptionScreen() {
       }
 
       await Linking.openURL((data as { url: string }).url);
-      // Refetch after returning from checkout (deep link will re-focus app)
       setTimeout(() => {
         void refetch();
       }, 3000);
@@ -176,12 +264,30 @@ export default function SubscriptionScreen() {
         body: { userId },
       });
 
-      if (error || !(data as { url?: string })?.url) {
-        Alert.alert('Error', 'Could not open billing portal. Please try again.');
+      // On non-2xx responses, supabase-js 2.45+ puts the body in
+      // error.context, not data. Try both so the user sees Stripe's real
+      // reason (e.g. "portal not activated in dashboard") instead of a
+      // generic "could not open" message.
+      let payload = data as { url?: string; error?: string } | null;
+      if (error && 'context' in error) {
+        try {
+          const ctx = (error as { context?: { json?: () => Promise<unknown> } }).context;
+          if (ctx?.json) payload = (await ctx.json()) as typeof payload;
+        } catch {
+          /* fall through to generic message */
+        }
+      }
+
+      if (error || !payload?.url) {
+        const reason =
+          payload?.error ??
+          (error instanceof Error ? error.message : null) ??
+          'Could not open billing portal. Please try again.';
+        Alert.alert('Billing portal unavailable', reason);
         return;
       }
 
-      await Linking.openURL((data as { url: string }).url);
+      await Linking.openURL(payload.url);
       setTimeout(() => {
         void refetch();
       }, 3000);
@@ -234,10 +340,13 @@ export default function SubscriptionScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 128 }}>
+        <CycleToggle cycle={cycle} onChange={setCycle} />
+
         {(['FREE', 'STARTER', 'FAMILY', 'SCHOOL'] as PlanKey[]).map((key) => (
           <PlanCard
             key={key}
             planKey={key}
+            cycle={cycle}
             isCurrent={currentPlan === key}
             isPopular={key === 'FAMILY'}
             onSelect={() => {
@@ -247,8 +356,12 @@ export default function SubscriptionScreen() {
           />
         ))}
 
-        {/* Manage billing — only shown if on a paid plan */}
-        {subscription && currentPlan !== 'FREE' && (
+        {/* Manage billing — visible whenever a Stripe customer exists,
+            including canceled/past_due. Those are the states where the
+            user most needs the portal (update payment, reactivate,
+            download final invoices). Hidden only for users who never
+            ran a checkout (no subscriptions row). */}
+        {subscription?.stripe_customer_id && (
           <TouchableOpacity
             onPress={() => {
               void handleManageBilling();
@@ -267,8 +380,10 @@ export default function SubscriptionScreen() {
         )}
 
         <Text className="font-inter text-neutral-400 text-xs text-center mt-4 px-4">
-          Subscriptions are billed monthly. Cancel anytime from the billing portal. Prices in GBP
-          and include VAT where applicable.
+          {cycle === 'annual'
+            ? 'Annual subscriptions are billed once per year. Cancel anytime from the billing portal.'
+            : 'Monthly subscriptions are billed each month. Switch to annual to save 17%.'}{' '}
+          Prices in GBP and include VAT where applicable.
         </Text>
       </ScrollView>
     </SafeAreaView>

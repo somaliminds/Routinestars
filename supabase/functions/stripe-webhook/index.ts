@@ -28,13 +28,20 @@ const supabase = createClient(
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
-// Map Stripe price IDs → plan keys
+// Map Stripe price IDs → plan keys. Each plan has BOTH a monthly and
+// annual Stripe price; the webhook treats them as the same plan key
+// (Family monthly and Family annual are both "FAMILY" in the DB).
 function priceIdToPlan(priceId: string | null | undefined): string {
   const map: Record<string, string> = {
     [Deno.env.get('STRIPE_PRICE_ID_STARTER') ?? '']: 'STARTER',
+    [Deno.env.get('STRIPE_PRICE_ID_STARTER_ANNUAL') ?? '']: 'STARTER',
     [Deno.env.get('STRIPE_PRICE_ID_FAMILY') ?? '']: 'FAMILY',
+    [Deno.env.get('STRIPE_PRICE_ID_FAMILY_ANNUAL') ?? '']: 'FAMILY',
     [Deno.env.get('STRIPE_PRICE_ID_SCHOOL') ?? '']: 'SCHOOL',
+    [Deno.env.get('STRIPE_PRICE_ID_SCHOOL_ANNUAL') ?? '']: 'SCHOOL',
   };
+  // Defensive — empty-string env vars would collide on map key ''
+  delete map[''];
   return map[priceId ?? ''] ?? 'FREE';
 }
 
