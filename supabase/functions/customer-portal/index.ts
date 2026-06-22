@@ -76,6 +76,37 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Authorisation — verify the caller IS the user they claim to be.
+  // Without this check, any authenticated user could open the billing
+  // portal for another user (view invoices, cancel subscription,
+  // change payment method).
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (!authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401,
+      headers: JSON_HEADERS,
+    });
+  }
+  const supabaseAsUser = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: authHeader } } },
+  );
+  const { data: { user: authUser }, error: authErr } = await supabaseAsUser.auth.getUser();
+  if (authErr || !authUser) {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401,
+      headers: JSON_HEADERS,
+    });
+  }
+  if (authUser.id !== userId) {
+    console.warn('[customer-portal] userId mismatch', { auth: authUser.id, body: userId });
+    return new Response(JSON.stringify({ error: 'forbidden: userId does not match authenticated user' }), {
+      status: 403,
+      headers: JSON_HEADERS,
+    });
+  }
+
   const { data: sub } = await supabase
     .from('subscriptions')
     .select('stripe_customer_id')

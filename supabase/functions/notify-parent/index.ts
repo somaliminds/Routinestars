@@ -54,16 +54,51 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Authorisation — verify the caller is the child or their parent.
+    // Without this, any authenticated user could spam push notifications
+    // to any victim parent (notification spam = potential app uninstall +
+    // ICO complaint).
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'unauthorized', sent: false }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAsUser = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: authData, error: authErr } = await supabaseAsUser.auth.getUser();
+    if (authErr || !authData?.user) {
+      return new Response(
+        JSON.stringify({ error: 'unauthorized', sent: false }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    const callerId = authData.user.id;
+
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Find the parent linked to this child
+    // 1. Find the parent linked to this child + verify caller is authorised
     const { data: childProfile, error: childErr } = await supabase
       .from('child_profiles')
-      .select('parent_id')
+      .select('parent_id, user_id')
       .eq('profile_id', child_id)
       .single();
+
+    // Caller must be the child OR the child's parent
+    if (childProfile && childProfile.parent_id !== callerId && childProfile.user_id !== callerId) {
+      console.warn('[notify-parent] authorisation denied', { caller: callerId, child_id });
+      return new Response(
+        JSON.stringify({ error: 'forbidden: not authorised for this child', sent: false }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
 
     if (childErr || !childProfile) {
       return new Response(

@@ -177,10 +177,57 @@ serve(async (req) => {
       });
     }
 
+    // Authorisation — verify the caller is either the child themselves
+    // (auto-approve flow) or the child's parent (post-approval flow).
+    // The gateway already validated the JWT (verify_jwt = true), but
+    // without this check any authenticated user could award badges and
+    // bump star counts on any child profile.
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const supabaseAsUser = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: authData, error: authErr } = await supabaseAsUser.auth.getUser();
+    if (authErr || !authData?.user) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const callerId = authData.user.id;
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    // Verify caller owns or IS the child
+    const { data: childRow } = await supabase
+      .from('child_profiles')
+      .select('parent_id, user_id')
+      .eq('profile_id', child_id)
+      .maybeSingle();
+    if (!childRow) {
+      return new Response(JSON.stringify({ error: 'child not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const isOwner = childRow.parent_id === callerId || childRow.user_id === callerId;
+    if (!isOwner) {
+      console.warn('[reward-engine] authorisation denied', { caller: callerId, child_id });
+      return new Response(JSON.stringify({ error: 'forbidden: not authorised for this child' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     // ── Load completion + scheduled set info ────────────────────────────────
     const { data: completion } = await supabase
