@@ -100,7 +100,7 @@
 
   <div class="card">
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: 1 June 2026</p>
+    <p class="updated">Last updated: 22 June 2026</p>
 
     <h2>1. Who We Are</h2>
     <p>RoutineStars Ltd ("RoutineStars", "we", "us", "our") operates the RoutineStars mobile application. We are registered in England and Wales.</p>
@@ -155,25 +155,28 @@
       <li>Diagnose crashes and technical errors (Sentry — anonymised)</li>
       <li>Calculate streaks, badges, and star rewards</li>
       <li>Generate progress reports for parents</li>
+      <li>Generate AI-drafted routines when a Family or Enterprise parent explicitly enables AI features — every draft is reviewed and edited by the parent before saving</li>
     </ul>
 
     <h2>6. Data Retention</h2>
     <ul>
-      <li>Activity completion records: 90 days, then automatically deleted</li>
-      <li>Annual progress reports: 1 year</li>
+      <li>Activity completion records: retained while your account is active so you can view long-term progress reports. You can request deletion at any time under Section 8.</li>
       <li>Account data: retained until account deletion</li>
       <li>Deleted accounts: all personal data removed within 30 days</li>
-      <li>Stripe billing records: 7 years (legal requirement)</li>
+      <li>Stripe billing records: 7 years (UK tax law requirement)</li>
+      <li>Crash reports (Sentry): 90 days, then automatically purged by our error-tracking provider</li>
     </ul>
 
     <h2>7. Data Sharing</h2>
-    <p>We share data only with:</p>
+    <p>We share data only with the following sub-processors, each bound by a Data Processing Agreement under UK GDPR Article 28:</p>
     <ul>
-      <li><strong>Supabase</strong> — database and authentication, hosted in EU</li>
+      <li><strong>Supabase</strong> — database and authentication, hosted in EU (Frankfurt)</li>
       <li><strong>Stripe</strong> — payment processing, PCI DSS Level 1 certified</li>
       <li><strong>Sentry</strong> — crash reporting, anonymised data only</li>
-      <li><strong>Firebase</strong> — push notifications, device token only</li>
-      <li><strong>Resend</strong> — transactional email delivery</li>
+      <li><strong>Firebase Cloud Messaging</strong> — push notifications, device token only</li>
+      <li><strong>Resend</strong> — transactional email delivery (account verification, password reset)</li>
+      <li><strong>Anthropic</strong> — AI routine generation (Claude). Only invoked when a Family/Enterprise parent explicitly enables AI features and submits a prompt. The prompt contains the child's first name and age band only — no surname, date of birth, photos, medical history, or diagnosis.</li>
+      <li><strong>OpenAI</strong> — alternative AI routine generation (GPT-4o-mini). Same data minimisation as Anthropic; the parent chooses which provider to use per request.</li>
     </ul>
     <p>We do not sell, rent, or trade any personal data. We do not share child data with any third party beyond what is strictly required to operate the service.</p>
 

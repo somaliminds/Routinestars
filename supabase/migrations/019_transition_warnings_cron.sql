@@ -49,7 +49,7 @@ SELECT cron.schedule(
   '* * * * *',
   $cron$
     SELECT net.http_post(
-      url     := 'https://<PROJECT_REF>.functions.supabase.co/send-transition-warnings',
+      url     := 'https://ujzsteariqmqizzraccw.functions.supabase.co/send-transition-warnings',
       headers := jsonb_build_object(
         'Content-Type',  'application/json',
         -- Recommended: Vault. Encrypted at rest, decrypted only at query
