@@ -222,6 +222,7 @@ export default function StepSequencerScreen() {
 
       {currentStep && (
         <StepCard
+          stepId={currentStep.step_id}
           stepNumber={currentIndex + 1}
           totalSteps={steps.length}
           title={currentStep.title}

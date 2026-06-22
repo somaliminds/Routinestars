@@ -10,10 +10,11 @@
  *
  * Spec: Section 5.3 — Activity Set Editor
  */
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   Modal,
@@ -25,13 +26,30 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
+// expo-image-picker is a native module — static `import * as` would load
+// it at route-tree evaluation (Expo Router scans every route at boot) and
+// crash the entire app when running on a dev client that hasn't been
+// rebuilt with the module yet. We import only the TYPE statically (erased
+// at compile time, zero runtime impact) and dynamic-import the module
+// inside the handler that actually needs it.
+import type * as ImagePickerType from 'expo-image-picker';
 import { useAuthStore } from '@/stores/auth.store';
-import { useSubscriptionStore, canAddCustomSet } from '@/stores/subscription.store';
+import {
+  useSubscriptionStore,
+  canAddCustomSet,
+  canUseAI,
+  requiredTierFor,
+} from '@/stores/subscription.store';
 import { supabase } from '@/lib/supabase';
 import type { ActivitySetRow, StepRow } from '@/types/database';
 import { useResponsive } from '@/hooks/useResponsive';
 import { OutcomeLinker } from '@/components/parent/OutcomeLinker';
 import { useRouter } from 'expo-router';
+import {
+  getLocalIllustrationUri,
+  setLocalIllustration,
+  removeLocalIllustration,
+} from '@/lib/local-illustrations';
 
 // ── Zod Schemas ──────────────────────────────────────────────────────────────
 const stepSchema = z.object({
@@ -111,6 +129,90 @@ function StepEditorModal({
 
   const totalDurationSeconds = durationMins * 60 + durationSecs;
 
+  // Sprint 7: parent can attach a local-only photo to a saved step.
+  // Unsaved/temp steps can't (no stable id to bind the file to).
+  const stepId = step?.step_id;
+  const canHavePhoto = !!stepId && !stepId.startsWith('temp-');
+  const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  useEffect(() => {
+    if (!canHavePhoto || !stepId) {
+      setLocalPhotoUri(null);
+      return;
+    }
+    let cancelled = false;
+    void getLocalIllustrationUri(stepId).then((uri) => {
+      if (!cancelled) setLocalPhotoUri(uri);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [stepId, canHavePhoto]);
+
+  const handlePickPhoto = useCallback(
+    async (source: 'camera' | 'library') => {
+      if (!stepId) return;
+      setPhotoBusy(true);
+      try {
+        // Dynamic import keeps native-module loading out of the route
+        // tree scan, so the screen mounts even on dev clients without
+        // expo-image-picker linked. If the user actually taps the button
+        // on such a client, this throws — caught + reported gracefully.
+        let ImagePicker: typeof ImagePickerType;
+        try {
+          ImagePicker = await import('expo-image-picker');
+        } catch {
+          Alert.alert(
+            'Photo picker unavailable',
+            'Rebuild the app (eas build) to enable photo picking on this device.',
+          );
+          return;
+        }
+        const perm =
+          source === 'camera'
+            ? await ImagePicker.requestCameraPermissionsAsync()
+            : await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert(
+            'Permission needed',
+            source === 'camera'
+              ? 'Allow camera access in Settings to take a photo.'
+              : 'Allow photo library access in Settings to choose a photo.',
+          );
+          return;
+        }
+        const opts: ImagePickerType.ImagePickerOptions = {
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.7,
+        };
+        const result =
+          source === 'camera'
+            ? await ImagePicker.launchCameraAsync(opts)
+            : await ImagePicker.launchImageLibraryAsync(opts);
+        if (result.canceled || !result.assets[0]) return;
+        const saved = await setLocalIllustration(stepId, result.assets[0].uri);
+        setLocalPhotoUri(saved + '?t=' + Date.now()); // bust Image cache
+      } finally {
+        setPhotoBusy(false);
+      }
+    },
+    [stepId],
+  );
+
+  const handleRemovePhoto = useCallback(async () => {
+    if (!stepId) return;
+    setPhotoBusy(true);
+    try {
+      await removeLocalIllustration(stepId);
+      setLocalPhotoUri(null);
+    } finally {
+      setPhotoBusy(false);
+    }
+  }, [stepId]);
+
   const handleSave = useCallback(() => {
     const result = stepSchema.safeParse({
       title: title.trim(),
@@ -189,18 +291,37 @@ function StepEditorModal({
                 <View className="flex-row items-center gap-3">
                   <TouchableOpacity
                     onPress={() => setDurationMins((m) => Math.max(0, m - 1))}
-                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center' }}
-                    accessibilityRole="button" accessibilityLabel="Decrease minutes"
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: '#F5F3FF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Decrease minutes"
                   >
                     <Text style={{ fontSize: 18, color: '#7C3AED' }}>−</Text>
                   </TouchableOpacity>
-                  <Text className="font-inter font-bold text-neutral-900" style={{ fontSize: 24, minWidth: 32, textAlign: 'center' }}>
+                  <Text
+                    className="font-inter font-bold text-neutral-900"
+                    style={{ fontSize: 24, minWidth: 32, textAlign: 'center' }}
+                  >
                     {durationMins}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setDurationMins((m) => Math.min(60, m + 1))}
-                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center' }}
-                    accessibilityRole="button" accessibilityLabel="Increase minutes"
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: '#F5F3FF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Increase minutes"
                   >
                     <Text style={{ fontSize: 18, color: '#7C3AED' }}>+</Text>
                   </TouchableOpacity>
@@ -215,18 +336,37 @@ function StepEditorModal({
                 <View className="flex-row items-center gap-3">
                   <TouchableOpacity
                     onPress={() => setDurationSecs((s) => (s - 15 + 60) % 60)}
-                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center' }}
-                    accessibilityRole="button" accessibilityLabel="Decrease seconds"
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: '#F5F3FF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Decrease seconds"
                   >
                     <Text style={{ fontSize: 18, color: '#7C3AED' }}>−</Text>
                   </TouchableOpacity>
-                  <Text className="font-inter font-bold text-neutral-900" style={{ fontSize: 24, minWidth: 32, textAlign: 'center' }}>
+                  <Text
+                    className="font-inter font-bold text-neutral-900"
+                    style={{ fontSize: 24, minWidth: 32, textAlign: 'center' }}
+                  >
                     {String(durationSecs).padStart(2, '0')}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setDurationSecs((s) => (s + 15) % 60)}
-                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center' }}
-                    accessibilityRole="button" accessibilityLabel="Increase seconds"
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: '#F5F3FF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Increase seconds"
                   >
                     <Text style={{ fontSize: 18, color: '#7C3AED' }}>+</Text>
                   </TouchableOpacity>
@@ -242,7 +382,9 @@ function StepEditorModal({
               </View>
             </View>
             {errors.duration_seconds && (
-              <Text className="font-inter text-accent-danger text-xs mt-2">{errors.duration_seconds}</Text>
+              <Text className="font-inter text-accent-danger text-xs mt-2">
+                {errors.duration_seconds}
+              </Text>
             )}
           </View>
 
@@ -253,26 +395,126 @@ function StepEditorModal({
           <View className="bg-white rounded-2xl p-4 border border-neutral-200 flex-row items-center gap-4">
             <TouchableOpacity
               onPress={() => setStars((s) => Math.max(1, s - 1))}
-              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center' }}
-              accessibilityRole="button" accessibilityLabel="Decrease stars"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#F5F3FF',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease stars"
             >
               <Text style={{ fontSize: 20, color: '#7C3AED' }}>−</Text>
             </TouchableOpacity>
             <View className="flex-row gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
-                <TouchableOpacity key={n} onPress={() => setStars(n)} accessibilityRole="button" accessibilityLabel={`Set ${n} stars`}>
+                <TouchableOpacity
+                  key={n}
+                  onPress={() => setStars(n)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Set ${n} stars`}
+                >
                   <Text style={{ fontSize: 24 }}>{n <= stars ? '⭐' : '☆'}</Text>
                 </TouchableOpacity>
               ))}
             </View>
             <TouchableOpacity
               onPress={() => setStars((s) => Math.min(5, s + 1))}
-              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center' }}
-              accessibilityRole="button" accessibilityLabel="Increase stars"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#F5F3FF',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Increase stars"
             >
               <Text style={{ fontSize: 20, color: '#7C3AED' }}>+</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Custom Photo — Sprint 7. Local to this device only; never
+              uploaded. Available only for saved steps so the file has a
+              stable id to bind to. */}
+          <Text className="font-inter font-semibold text-neutral-700 text-xs uppercase tracking-wide mb-2 mt-5">
+            Custom Photo (this device only)
+          </Text>
+          {!canHavePhoto ? (
+            <View className="bg-white rounded-2xl p-4 border border-neutral-200">
+              <Text className="font-inter text-neutral-500 text-sm text-center">
+                Save the step first, then re-open it to attach a photo.
+              </Text>
+            </View>
+          ) : (
+            <View className="bg-white rounded-2xl p-4 border border-neutral-200">
+              {localPhotoUri ? (
+                <View className="items-center">
+                  <Image
+                    source={{ uri: localPhotoUri }}
+                    style={{ width: 140, height: 140, borderRadius: 16 }}
+                  />
+                  <View className="flex-row gap-2 mt-3">
+                    <TouchableOpacity
+                      onPress={() => void handlePickPhoto('library')}
+                      disabled={photoBusy}
+                      className="bg-brand-light rounded-xl px-4 py-2"
+                      accessibilityRole="button"
+                    >
+                      <Text className="font-inter text-brand-primary text-sm font-semibold">
+                        Change
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => void handleRemovePhoto()}
+                      disabled={photoBusy}
+                      className="bg-accent-danger/10 rounded-xl px-4 py-2"
+                      accessibilityRole="button"
+                    >
+                      <Text className="font-inter text-accent-danger text-sm font-semibold">
+                        Remove
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text className="font-inter text-neutral-400 text-xs mt-3 text-center">
+                    Saved on this device only. Re-uploading on another device won't sync this photo.
+                  </Text>
+                </View>
+              ) : (
+                <View>
+                  <View className="flex-row gap-2">
+                    <TouchableOpacity
+                      onPress={() => void handlePickPhoto('camera')}
+                      disabled={photoBusy}
+                      className="flex-1 bg-brand-light rounded-xl py-3 items-center"
+                      accessibilityRole="button"
+                    >
+                      <Text className="font-inter text-brand-primary text-sm font-semibold">
+                        📷 Take photo
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => void handlePickPhoto('library')}
+                      disabled={photoBusy}
+                      className="flex-1 bg-brand-light rounded-xl py-3 items-center"
+                      accessibilityRole="button"
+                    >
+                      <Text className="font-inter text-brand-primary text-sm font-semibold">
+                        🖼 Choose photo
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text className="font-inter text-neutral-400 text-xs mt-2 text-center">
+                    A photo of your child's own toothbrush or coat helps them recognise the step
+                    faster than a pictogram.
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {!isNew && onDelete && (
             <TouchableOpacity
@@ -443,6 +685,8 @@ function ActivitySetModal({
           if (!step.step_id.startsWith('temp-')) {
             await supabase.from('steps').delete().eq('step_id', step.step_id);
           }
+          // Drop any local photo the parent had attached for this step.
+          await removeLocalIllustration(step.step_id);
           setSteps((prev) => prev.filter((s) => s.step_id !== step.step_id));
           setEditingStep(null);
         },
@@ -689,6 +933,7 @@ export default function ActivitySetsScreen() {
   const userId = session?.user.id ?? null;
   const subscription = useSubscriptionStore((s) => s.subscription);
   const canCreateCustom = canAddCustomSet(subscription);
+  const aiAllowed = canUseAI(subscription);
   const queryClient = useQueryClient();
   const r = useResponsive();
   const router = useRouter();
@@ -747,11 +992,15 @@ export default function ActivitySetsScreen() {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: r.scrollClearance + 72 }}>
-        {/* AI Generator entry — only shown when the parent has opted in.
-            Tapping leaves the screen; the existing + Create Custom Set
-            floating button keeps the manual path. */}
-        {aiEnabled && (
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: r.scrollClearance + 72 }}
+      >
+        {/* AI Generator entry — gated by BOTH a per-user opt-in flag
+            (privacy/safety) AND the subscription tier (Family+). Free
+            and Starter users see a locked card that routes to the
+            Subscription page; Family+ users see the working entry only
+            if they've opted in via Settings → AI Features. */}
+        {aiAllowed && aiEnabled && (
           <TouchableOpacity
             className="bg-white rounded-2xl px-4 py-3 mb-4 flex-row items-center shadow-sm"
             style={{ borderWidth: 1, borderColor: '#EDE9FE' }}
@@ -770,6 +1019,29 @@ export default function ActivitySetsScreen() {
               </Text>
             </View>
             <Text className="font-inter text-brand-primary">›</Text>
+          </TouchableOpacity>
+        )}
+        {!aiAllowed && (
+          <TouchableOpacity
+            className="bg-white rounded-2xl px-4 py-3 mb-4 flex-row items-center shadow-sm"
+            style={{ borderWidth: 1, borderColor: '#EDE9FE', opacity: 0.95 }}
+            onPress={() => router.push('/(parent)/subscription')}
+            accessibilityRole="button"
+            accessibilityHint="Opens the subscription page to upgrade"
+          >
+            <Text style={{ fontSize: 22 }} className="mr-3">
+              🔒
+            </Text>
+            <View className="flex-1">
+              <Text className="font-inter font-semibold text-neutral-900 text-sm">
+                AI routine generation
+              </Text>
+              <Text className="font-inter text-neutral-500 text-xs mt-0.5">
+                Available on {requiredTierFor('canUseAI').tierName} ·{' '}
+                {requiredTierFor('canUseAI').priceDisplay}
+              </Text>
+            </View>
+            <Text className="font-inter text-brand-primary text-xs font-semibold">UPGRADE ›</Text>
           </TouchableOpacity>
         )}
 

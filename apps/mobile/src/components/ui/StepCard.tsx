@@ -2,8 +2,12 @@ import { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { ProgressBar } from './ProgressBar';
 import { TimeTimerWedge } from './TimeTimerWedge';
+import { useLocalIllustration } from '@/hooks/useLocalIllustration';
 
 interface StepCardProps {
+  /** When provided, a parent-uploaded local photo for this step takes
+   *  priority over illustrationUrl. */
+  stepId?: string | null;
   stepNumber: number;
   totalSteps: number;
   title: string;
@@ -17,6 +21,7 @@ interface StepCardProps {
 }
 
 export function StepCard({
+  stepId,
   stepNumber,
   totalSteps,
   title,
@@ -32,6 +37,10 @@ export function StepCard({
   const remaining = Math.max(durationSeconds - elapsedSeconds, 0);
   const isOvertime = elapsedSeconds > durationSeconds;
   const [imgFailed, setImgFailed] = useState(false);
+
+  // Sprint 7: parent photo on this device wins over the database URL.
+  const { uri: localUri } = useLocalIllustration(stepId);
+  const effectiveImageUri = localUri ?? illustrationUrl;
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -59,11 +68,11 @@ export function StepCard({
 
       {/* Illustration — neumorphic white card lifted off pastel bg */}
       <View style={styles.illustrationCard}>
-        {illustrationUrl && !imgFailed ? (
+        {effectiveImageUri && !imgFailed ? (
           <Image
-            source={{ uri: illustrationUrl }}
+            source={{ uri: effectiveImageUri }}
             style={styles.illustrationImage}
-            resizeMode="contain"
+            resizeMode={localUri ? 'cover' : 'contain'}
             accessibilityLabel={title}
             onError={() => setImgFailed(true)}
           />
@@ -148,7 +157,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.55)',
     shadowColor: '#5B21B6',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.20,
+    shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 7,
   },
@@ -212,7 +221,7 @@ const styles = StyleSheet.create({
     // Shadow matches surface colour, not darker — physically correct light
     shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.30,
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },

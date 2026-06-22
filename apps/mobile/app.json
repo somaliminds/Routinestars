@@ -31,10 +31,7 @@
               "scheme": "routinestars"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
@@ -46,10 +43,7 @@
         "NSCameraUsageDescription": "Used to upload custom activity illustrations.",
         "NSPhotoLibraryUsageDescription": "Used to select photos for custom activity illustrations.",
         "NSMicrophoneUsageDescription": "Not used by this app.",
-        "UIBackgroundModes": [
-          "fetch",
-          "remote-notification"
-        ]
+        "UIBackgroundModes": ["fetch", "remote-notification"]
       }
     },
     "plugins": [
@@ -71,6 +65,14 @@
       ],
       "expo-font",
       "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to use the camera so you can take photos for activity steps.",
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photo library so you can choose photos for activity steps.",
+          "microphonePermission": false
+        }
+      ],
       "@sentry/react-native"
     ],
     "experiments": {
