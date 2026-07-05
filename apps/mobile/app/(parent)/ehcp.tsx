@@ -47,6 +47,7 @@ import {
   type ReviewDueStatus,
 } from '@/lib/annual-review';
 import { AnnualReviewForm } from '@/components/parent/AnnualReviewForm';
+import { ApdrCyclesModal } from '@/components/parent/ApdrCyclesModal';
 import type { ChildProfileRow, EhcpOutcomeRow, EhcpCategory, EhcpStatus } from '@/types/database';
 
 const CATEGORIES: { value: EhcpCategory; label: string; emoji: string }[] = [
@@ -136,6 +137,7 @@ export default function EhcpScreen() {
   });
   const reviewDue: ReviewDueStatus | null = computeReviewDue(reviewRow ?? null);
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
+  const [apdrOutcome, setApdrOutcome] = useState<EhcpOutcomeRow | null>(null);
 
   const saveMutation = useMutation({
     mutationFn: async (payload: { outcome_id?: string } & OutcomeForm) => {
@@ -559,7 +561,12 @@ export default function EhcpScreen() {
                       ({list.length})
                     </Text>
                     {list.map((o) => (
-                      <OutcomeCard key={o.outcome_id} outcome={o} onEdit={() => setEditing(o)} />
+                      <OutcomeCard
+                        key={o.outcome_id}
+                        outcome={o}
+                        onEdit={() => setEditing(o)}
+                        onApdr={() => setApdrOutcome(o)}
+                      />
                     ))}
                   </View>
                 );
@@ -619,30 +626,62 @@ export default function EhcpScreen() {
           }}
         />
       )}
+
+      {/* APDR cycles for the tapped outcome */}
+      {apdrOutcome && activeChildId && (
+        <ApdrCyclesModal
+          visible={apdrOutcome !== null}
+          outcomeId={apdrOutcome.outcome_id}
+          outcomeText={apdrOutcome.outcome_text}
+          childId={activeChildId}
+          onClose={() => setApdrOutcome(null)}
+        />
+      )}
     </View>
   );
 }
 
 // ── Outcome card ─────────────────────────────────────────────────────────────
-function OutcomeCard({ outcome, onEdit }: { outcome: EhcpOutcomeRow; onEdit: () => void }) {
+function OutcomeCard({
+  outcome,
+  onEdit,
+  onApdr,
+}: {
+  outcome: EhcpOutcomeRow;
+  onEdit: () => void;
+  onApdr: () => void;
+}) {
   const cat = CATEGORY_BY_VALUE[outcome.category];
   return (
-    <TouchableOpacity style={styles.card} onPress={onEdit} accessibilityRole="button">
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardCategory}>
-          {cat.emoji} {cat.label}
+    <View style={styles.card}>
+      <TouchableOpacity onPress={onEdit} accessibilityRole="button">
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardCategory}>
+            {cat.emoji} {cat.label}
+          </Text>
+          {outcome.target_date && (
+            <Text style={styles.cardDate}>Target: {outcome.target_date}</Text>
+          )}
+        </View>
+        <Text style={styles.cardText} numberOfLines={3}>
+          {outcome.outcome_text}
         </Text>
-        {outcome.target_date && <Text style={styles.cardDate}>Target: {outcome.target_date}</Text>}
-      </View>
-      <Text style={styles.cardText} numberOfLines={3}>
-        {outcome.outcome_text}
-      </Text>
-      {outcome.notes && (
-        <Text style={styles.cardNotes} numberOfLines={1}>
-          📝 {outcome.notes}
-        </Text>
-      )}
-    </TouchableOpacity>
+        {outcome.notes && (
+          <Text style={styles.cardNotes} numberOfLines={1}>
+            📝 {outcome.notes}
+          </Text>
+        )}
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.apdrRow}
+        onPress={onApdr}
+        accessibilityRole="button"
+        accessibilityLabel="Manage APDR cycles for this outcome"
+      >
+        <Text style={styles.apdrRowText}>🔄 Assess · Plan · Do · Review cycles</Text>
+        <Text style={styles.apdrRowArrow}>›</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -907,6 +946,17 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontStyle: 'italic',
   },
+  apdrRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  apdrRowText: { fontFamily: 'Inter_600SemiBold', fontSize: 12, color: '#5B21B6' },
+  apdrRowArrow: { fontFamily: 'Nunito_700Bold', fontSize: 18, color: '#7C3AED' },
   addBtn: {
     backgroundColor: '#7C3AED',
     borderRadius: 20,

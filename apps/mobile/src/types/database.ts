@@ -569,6 +569,53 @@ export type Database = {
         };
         Relationships: [];
       };
+      apdr_cycles: {
+        Row: {
+          cycle_id: string;
+          outcome_id: string;
+          child_id: string;
+          cycle_number: number;
+          window_from: string | null;
+          window_to: string | null;
+          assess_notes: string | null;
+          plan_target: string | null;
+          plan_provision: string | null;
+          do_notes: string | null;
+          review_progress: string | null;
+          review_decision: 'CONTINUE' | 'MODIFY' | 'ESCALATE' | null;
+          status: 'ASSESS' | 'PLAN' | 'DO' | 'REVIEW' | 'COMPLETE';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          cycle_id?: string;
+          outcome_id: string;
+          child_id: string;
+          cycle_number?: number;
+          window_from?: string | null;
+          window_to?: string | null;
+          assess_notes?: string | null;
+          plan_target?: string | null;
+          plan_provision?: string | null;
+          do_notes?: string | null;
+          review_progress?: string | null;
+          review_decision?: 'CONTINUE' | 'MODIFY' | 'ESCALATE' | null;
+          status?: 'ASSESS' | 'PLAN' | 'DO' | 'REVIEW' | 'COMPLETE';
+        };
+        Update: {
+          cycle_number?: number;
+          window_from?: string | null;
+          window_to?: string | null;
+          assess_notes?: string | null;
+          plan_target?: string | null;
+          plan_provision?: string | null;
+          do_notes?: string | null;
+          review_progress?: string | null;
+          review_decision?: 'CONTINUE' | 'MODIFY' | 'ESCALATE' | null;
+          status?: 'ASSESS' | 'PLAN' | 'DO' | 'REVIEW' | 'COMPLETE';
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
