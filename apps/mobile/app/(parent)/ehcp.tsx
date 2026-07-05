@@ -40,6 +40,7 @@ import { useSubscriptionStore, canUseEHCP, requiredTierFor } from '@/stores/subs
 import { useResponsive } from '@/hooks/useResponsive';
 import { buildEvidencePack, renderEvidencePackHtml } from '@/lib/ehcp-report';
 import { buildOnePageProfile, renderOnePageProfileHtml } from '@/lib/one-page-profile';
+import { buildParentalNarrative, renderParentalNarrativeHtml } from '@/lib/parental-narrative';
 import {
   fetchAnnualReview,
   reviewRowToInputs,
@@ -267,6 +268,22 @@ export default function EhcpScreen() {
       Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsExportingProfile(false);
+    }
+  }, [activeChildId, printHtml]);
+
+  const [isExportingNarrative, setIsExportingNarrative] = useState(false);
+  const handleExportNarrative = useCallback(async () => {
+    if (!activeChildId) return;
+    setIsExportingNarrative(true);
+    try {
+      const data = await buildParentalNarrative(activeChildId);
+      if (!data) throw new Error('Could not load child profile');
+      const html = renderParentalNarrativeHtml(data);
+      await printHtml(html, 'All About Me', 'All About Me generated');
+    } catch (err) {
+      Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsExportingNarrative(false);
     }
   }, [activeChildId, printHtml]);
 
@@ -540,6 +557,30 @@ export default function EhcpScreen() {
                       <Text style={styles.profileSub}>
                         A person-centred summary to share with school, therapists and carers.
                         Auto-fills the basics; you complete the rest.
+                      </Text>
+                    </View>
+                    <Text style={styles.profileArrow}>→</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Parental narrative — tell your child's story once. */}
+              <TouchableOpacity
+                style={styles.profileBtn}
+                onPress={handleExportNarrative}
+                disabled={isExportingNarrative}
+                accessibilityLabel="Generate All About Me narrative"
+              >
+                {isExportingNarrative ? (
+                  <ActivityIndicator color="#5B21B6" />
+                ) : (
+                  <>
+                    <Text style={styles.exportEmoji}>📖</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.profileTitle}>Generate "All About Me"</Text>
+                      <Text style={styles.profileSub}>
+                        Tell your child's story once — history, needs and what helps. Reuse it at
+                        every meeting and to support an EHC assessment request.
                       </Text>
                     </View>
                     <Text style={styles.profileArrow}>→</Text>
