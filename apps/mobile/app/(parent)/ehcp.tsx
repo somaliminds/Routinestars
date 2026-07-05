@@ -200,7 +200,7 @@ export default function EhcpScreen() {
       if (canShare) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
-          dialogTitle: 'EHCP Evidence Pack',
+          dialogTitle: 'EHCP Annual Review Pack',
           UTI: 'com.adobe.pdf',
         });
       } else {
@@ -413,10 +413,10 @@ export default function EhcpScreen() {
                     <>
                       <Text style={styles.exportEmoji}>📄</Text>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.exportTitle}>Generate Evidence Pack</Text>
+                        <Text style={styles.exportTitle}>Generate Annual Review Pack</Text>
                         <Text style={styles.exportSub}>
-                          12-month PDF of progress against every outcome. One tap, ready for annual
-                          review.
+                          Statutory-format PDF: auto-filled progress report plus parent, child-voice
+                          and review sections. Ready for the annual review.
                         </Text>
                       </View>
                       <Text style={styles.exportArrow}>→</Text>

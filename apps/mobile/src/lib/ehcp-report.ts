@@ -141,7 +141,7 @@ export async function buildEvidencePack(
     const ds = (ss as { day_schedules: unknown }).day_schedules;
     const dsRow = Array.isArray(ds) ? ds[0] : ds;
     if (!dsRow) continue;
-    const sd = (dsRow as { child_id: string; schedule_date: string });
+    const sd = dsRow as { child_id: string; schedule_date: string };
     if (sd.child_id !== childId) continue;
     if (sd.schedule_date < dateFrom || sd.schedule_date > dateTo) continue;
     scheduledBySet[ss.set_id as string] = (scheduledBySet[ss.set_id as string] ?? 0) + 1;
@@ -197,24 +197,99 @@ function escape(s: string): string {
 }
 
 function statusBadge(s: EhcpStatus): string {
-  const c =
-    s === 'ACTIVE' ? '#7C3AED' : s === 'ACHIEVED' ? '#10B981' : '#9CA3AF';
+  const c = s === 'ACTIVE' ? '#7C3AED' : s === 'ACHIEVED' ? '#10B981' : '#9CA3AF';
   return `<span style="background:${c}; color:#fff; padding:2px 8px; border-radius:999px; font-size:10px; letter-spacing:0.5px;">${s}</span>`;
 }
 
-export function renderEvidencePackHtml(pack: EvidencePack): string {
+/**
+ * Human-completed parts of the statutory Annual Review pack.
+ *
+ * The auto-generated progress data (School/Setting Progress Report) comes
+ * from `EvidencePack`. These fields are the parts a person must supply:
+ * review metadata, parent/carer contribution, the child's own views, and
+ * the review recommendation. All optional — when absent, the pack prints
+ * labelled fill-in spaces so it can be completed by hand. A later
+ * checkpoint wires these to in-app input + persistence.
+ *
+ * Structure follows SEND Code of Practice Ch.11 / SEND Regs 2014 reg.18
+ * (England annual review). See docs/research/send-framework §C5.
+ */
+export interface AnnualReviewInputs {
+  ehcp_date_issued?: string;
+  review_date?: string;
+  review_chair?: string;
+  attendees?: string[];
+  parent_contribution?: {
+    strengths_and_achievements?: string;
+    progress_observed?: string;
+    concerns?: string;
+    aspirations_next_year?: string;
+    requested_changes?: string;
+  };
+  child_views?: {
+    how_i_feel_about_my_support?: string;
+    what_is_going_well?: string;
+    what_is_difficult?: string;
+    what_i_want_to_change?: string;
+    my_goals?: string;
+    communication_method_used?: string;
+  };
+  recommendation?: 'MAINTAIN' | 'AMEND' | 'CEASE';
+}
+
+/** A labelled block: prints supplied text, or ruled fill-in lines if blank. */
+function field(label: string, value: string | undefined, lines = 2): string {
+  const filled = value && value.trim().length > 0;
+  const body = filled
+    ? `<p style="margin:4px 0 0; font-size:12px; color:#111827; line-height:1.5; white-space:pre-wrap;">${escape(value!.trim())}</p>`
+    : Array.from({ length: lines })
+        .map(
+          () => '<div style="border-bottom:1px solid #D1D5DB; height:18px; margin-top:8px;"></div>',
+        )
+        .join('');
+  return `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px; color:#6B7280; font-weight:600;">${label}</div>
+      ${body}
+    </div>`;
+}
+
+/** Section wrapper with a numbered statutory heading. */
+function reviewSection(index: number, title: string, inner: string): string {
+  return `
+    <section style="margin-bottom:22px; page-break-inside:avoid;">
+      <h2 style="font-size:14px; color:#5B21B6; margin:0 0 4px; padding-bottom:6px; border-bottom:2px solid #EDE9FE;">
+        ${index}. ${title}
+      </h2>
+      ${inner}
+    </section>`;
+}
+
+function checkbox(label: string, checked: boolean): string {
+  const box = checked
+    ? '<span style="display:inline-block; width:14px; height:14px; border:2px solid #7C3AED; background:#7C3AED; color:#fff; text-align:center; line-height:12px; font-size:10px; border-radius:3px;">✓</span>'
+    : '<span style="display:inline-block; width:14px; height:14px; border:2px solid #9CA3AF; border-radius:3px;"></span>';
+  return `<span style="margin-right:18px; font-size:12px; color:#111827;">${box}&nbsp; ${label}</span>`;
+}
+
+export function renderEvidencePackHtml(
+  pack: EvidencePack,
+  inputs: AnnualReviewInputs = {},
+): string {
   const formattedFrom = format(new Date(pack.date_from), 'd MMM yyyy');
   const formattedTo = format(new Date(pack.date_to), 'd MMM yyyy');
   const generatedAt = format(new Date(pack.generated_at), 'd MMM yyyy, HH:mm');
 
+  // ── Section 1: School/Setting Progress Report (AUTO from RoutineStars data) ──
   const outcomesHtml = pack.outcomes
     .map((o) => {
-      const linkedSetsHtml = o.linked_sets
-        .map(
-          (s) =>
-            `<span style="background:#EDE9FE; color:#5B21B6; padding:3px 10px; border-radius:999px; font-size:11px; margin-right:6px; display:inline-block; margin-bottom:4px;">${s.icon_emoji} ${escape(s.set_name)}</span>`,
-        )
-        .join('') || '<em style="color:#9CA3AF; font-size:11px;">No linked activity sets</em>';
+      const linkedSetsHtml =
+        o.linked_sets
+          .map(
+            (s) =>
+              `<span style="background:#EDE9FE; color:#5B21B6; padding:3px 10px; border-radius:999px; font-size:11px; margin-right:6px; display:inline-block; margin-bottom:4px;">${s.icon_emoji} ${escape(s.set_name)}</span>`,
+          )
+          .join('') || '<em style="color:#9CA3AF; font-size:11px;">No linked activity sets</em>';
 
       const evidenceHtml = o.last_evidence.length
         ? `<ul style="margin:8px 0 0; padding-left:18px; font-size:11px; color:#374151;">${o.last_evidence
@@ -254,36 +329,116 @@ export function renderEvidencePackHtml(pack: EvidencePack): string {
     })
     .join('');
 
+  const progressSection = reviewSection(
+    1,
+    'Progress Report — measured outcomes',
+    `<p style="font-size:11px; color:#6B7280; margin:0 0 12px;">
+       Auto-generated from RoutineStars completion data for the reporting period.
+       Quantified, dated, and triangulated with the linked activity sets below.
+     </p>
+     ${
+       pack.outcomes.length === 0
+         ? '<p style="color:#9CA3AF; font-size:12px;">No EHCP outcomes have been recorded for this child yet.</p>'
+         : outcomesHtml
+     }`,
+  );
+
+  // ── Section 2: Parent/Carer Contribution (human-completed) ──
+  const pc = inputs.parent_contribution ?? {};
+  const parentSection = reviewSection(
+    2,
+    'Parent / Carer contribution',
+    field('Strengths and achievements this year', pc.strengths_and_achievements, 2) +
+      field('Progress observed against the EHCP outcomes', pc.progress_observed, 3) +
+      field('Concerns', pc.concerns, 2) +
+      field('Aspirations for the next year', pc.aspirations_next_year, 2) +
+      field('Any changes to the EHCP we would like to request', pc.requested_changes, 2),
+  );
+
+  // ── Section 3: Child / Young Person's Views (human-completed) ──
+  const cv = inputs.child_views ?? {};
+  const childSection = reviewSection(
+    3,
+    "Child / Young Person's views",
+    field('Communication method used to gather these views', cv.communication_method_used, 1) +
+      field('How I feel about my support', cv.how_i_feel_about_my_support, 2) +
+      field('What is going well', cv.what_is_going_well, 2) +
+      field('What is difficult', cv.what_is_difficult, 2) +
+      field('What I want to change', cv.what_i_want_to_change, 2) +
+      field('My goals', cv.my_goals, 2),
+  );
+
+  // ── Section 4: Professional advice (human-completed / attached) ──
+  const professionalSection = reviewSection(
+    4,
+    'Professional advice',
+    `<p style="font-size:11px; color:#6B7280; margin:0 0 8px;">
+       Updated advice from professionals involved (e.g. SENCO, EP, SALT, OT,
+       health, social care). Attach reports or summarise below.
+     </p>` + field('Summary of professional advice', undefined, 4),
+  );
+
+  // ── Section 5: Review recommendation (human-completed) ──
+  const rec = inputs.recommendation;
+  const recommendationSection = reviewSection(
+    5,
+    'Review recommendation',
+    `<div style="margin-bottom:10px;">
+       ${checkbox('Maintain the EHCP unchanged', rec === 'MAINTAIN')}
+       ${checkbox('Amend the EHCP', rec === 'AMEND')}
+       ${checkbox('Cease to maintain the EHCP', rec === 'CEASE')}
+     </div>` +
+      field('Summary of the review meeting and agreed actions', undefined, 4) +
+      `<p style="font-size:10px; color:#9CA3AF; margin-top:10px;">
+         The local authority must notify its decision within <strong>4 weeks</strong>
+         of the review meeting (SEND Regs 2014, reg.18).
+       </p>`,
+  );
+
+  // ── Header + review metadata ──
+  const metaRow = (label: string, value: string | undefined) =>
+    `<div style="font-size:11px; color:#374151; margin-top:4px;">
+       <span style="color:#6B7280;">${label}:</span>
+       ${value && value.trim() ? escape(value) : '<span style="color:#9CA3AF;">__________________________</span>'}
+     </div>`;
+
   return `
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>EHCP Evidence Pack — ${escape(pack.child.child_name)}</title></head>
+<html><head><meta charset="utf-8"><title>EHCP Annual Review Pack — ${escape(pack.child.child_name)}</title></head>
 <body style="font-family: -apple-system, system-ui, sans-serif; color:#111827; padding:24px; max-width:780px; margin:0 auto;">
-  <header style="border-bottom:3px solid #7C3AED; padding-bottom:14px; margin-bottom:20px;">
-    <h1 style="margin:0 0 4px; font-size:22px; color:#5B21B6;">EHCP Annual Review — Evidence Pack</h1>
+  <header style="border-bottom:3px solid #7C3AED; padding-bottom:14px; margin-bottom:18px;">
+    <h1 style="margin:0 0 4px; font-size:22px; color:#5B21B6;">EHCP Annual Review Pack</h1>
     <p style="margin:0; font-size:13px; color:#374151;">
       <strong>${escape(pack.child.child_name)} ${pack.child.avatar_emoji}</strong>
       &nbsp;·&nbsp; DOB ${pack.child.date_of_birth}
     </p>
-    <p style="margin:6px 0 0; font-size:11px; color:#6B7280;">
-      Reporting period: ${formattedFrom} — ${formattedTo} &nbsp;·&nbsp;
-      Generated ${generatedAt}
+    ${metaRow('EHCP first issued', inputs.ehcp_date_issued)}
+    ${metaRow('Review meeting date', inputs.review_date)}
+    ${metaRow('Review chair', inputs.review_chair)}
+    ${metaRow('Attendees', inputs.attendees?.join(', '))}
+    <p style="margin:8px 0 0; font-size:11px; color:#6B7280;">
+      Reporting period: ${formattedFrom} — ${formattedTo} &nbsp;·&nbsp; Generated ${generatedAt}
     </p>
   </header>
 
-  <section style="background:#F5F0FF; border-left:4px solid #7C3AED; padding:12px 16px; margin-bottom:20px;">
-    <p style="margin:0; font-size:11px; color:#5B21B6;">
-      This evidence pack was generated automatically from completion data
-      recorded in the RoutineStars app. It is intended to support — not
-      replace — the statutory annual review of the child's EHCP. Outcomes
-      are recorded verbatim from the parent's entries.
+  <section style="background:#F5F0FF; border-left:4px solid #7C3AED; padding:12px 16px; margin-bottom:22px;">
+    <p style="margin:0; font-size:11px; color:#5B21B6; line-height:1.5;">
+      This pack supports — it does not replace — the statutory annual review of the
+      child's EHCP (Children and Families Act 2014 s.44; SEND Regs 2014 reg.18;
+      SEND Code of Practice Ch.11). Section 1 (Progress Report) is generated
+      automatically from RoutineStars completion data. Sections 2–5 are completed
+      by the parent/carer, the child or young person, professionals, and the
+      review meeting. Outcomes are recorded verbatim from the parent's entries.
     </p>
   </section>
 
-  ${pack.outcomes.length === 0
-    ? '<p style="color:#9CA3AF; font-size:13px;">No EHCP outcomes have been recorded for this child yet.</p>'
-    : outcomesHtml}
+  ${progressSection}
+  ${parentSection}
+  ${childSection}
+  ${professionalSection}
+  ${recommendationSection}
 
-  <footer style="margin-top:32px; padding-top:14px; border-top:1px solid #E5E7EB; font-size:10px; color:#9CA3AF; text-align:center;">
+  <footer style="margin-top:28px; padding-top:14px; border-top:1px solid #E5E7EB; font-size:10px; color:#9CA3AF; text-align:center;">
     Generated by RoutineStars · routinestars.co.uk
   </footer>
 </body></html>
