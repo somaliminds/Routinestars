@@ -51,11 +51,15 @@ import { AnnualReviewForm } from '@/components/parent/AnnualReviewForm';
 import { ApdrCyclesModal } from '@/components/parent/ApdrCyclesModal';
 import type { ChildProfileRow, EhcpOutcomeRow, EhcpCategory, EhcpStatus } from '@/types/database';
 
+// The first four align to the statutory "areas of need" (SEND Code 6.27–6.39):
+// Communication & Interaction; Cognition & Learning; Social, Emotional &
+// Mental Health; Sensory &/or Physical. Independence + Other are additional
+// common EHCP outcome domains.
 const CATEGORIES: { value: EhcpCategory; label: string; emoji: string }[] = [
-  { value: 'COMMUNICATION', label: 'Communication', emoji: '💬' },
+  { value: 'COMMUNICATION', label: 'Communication & Interaction', emoji: '💬' },
   { value: 'COGNITION', label: 'Cognition & Learning', emoji: '🧠' },
-  { value: 'SOCIAL_EMOTIONAL', label: 'Social & Emotional', emoji: '💛' },
-  { value: 'SENSORY_PHYSICAL', label: 'Sensory & Physical', emoji: '🤲' },
+  { value: 'SOCIAL_EMOTIONAL', label: 'Social, Emotional & MH', emoji: '💛' },
+  { value: 'SENSORY_PHYSICAL', label: 'Sensory &/or Physical', emoji: '🤲' },
   { value: 'INDEPENDENCE', label: 'Independence', emoji: '🌱' },
   { value: 'OTHER', label: 'Other', emoji: '✨' },
 ];
@@ -748,6 +752,19 @@ function OutcomeEditorModal({
   const [status, setStatus] = useState<EhcpStatus>('ACTIVE');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showSmartHelp, setShowSmartHelp] = useState(false);
+
+  // Gentle, non-blocking SMART heuristics (SEND Code 9.64–9.69; research
+  // §D1). Nudges only — a green tick is a hint, never a requirement.
+  const trimmed = text.trim();
+  const smartSpecific = trimmed.length >= 25;
+  const smartMeasurable =
+    /\d/.test(trimmed) ||
+    /\b(independently|%|times|out of|of \d|on \d|days|each|every|consistently)\b/i.test(trimmed);
+  const smartTimebound =
+    /\b20\d\d\b/.test(trimmed) ||
+    /\b(by |within |term|week|month|year|end of)\b/i.test(trimmed) ||
+    targetDate.trim().length > 0;
 
   const handleOpen = useCallback(() => {
     setText(initial?.outcome_text ?? '');
@@ -801,7 +818,10 @@ function OutcomeEditorModal({
 
         <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
           {/* Category */}
-          <Text style={styles.fieldLabel}>Category</Text>
+          <Text style={styles.fieldLabel}>Area of need</Text>
+          <Text style={styles.fieldCaption}>
+            The first four are the statutory areas of need (SEND Code 6.27).
+          </Text>
           <View style={styles.categoryGrid}>
             {CATEGORIES.map((c) => (
               <TouchableOpacity
@@ -834,6 +854,44 @@ function OutcomeEditorModal({
             maxLength={1000}
           />
           {errors.outcome_text && <Text style={styles.fieldError}>{errors.outcome_text}</Text>}
+
+          {/* SMART helper — live gentle checks + expandable guidance */}
+          {trimmed.length > 0 && (
+            <View style={styles.smartCard}>
+              <View style={styles.smartCheckRow}>
+                <Text style={smartSpecific ? styles.smartOk : styles.smartTodo}>
+                  {smartSpecific ? '✓' : '○'} Specific
+                </Text>
+                <Text style={smartMeasurable ? styles.smartOk : styles.smartTodo}>
+                  {smartMeasurable ? '✓' : '○'} Measurable
+                </Text>
+                <Text style={smartTimebound ? styles.smartOk : styles.smartTodo}>
+                  {smartTimebound ? '✓' : '○'} Time-bound
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowSmartHelp((s) => !s)}>
+                <Text style={styles.smartToggle}>
+                  {showSmartHelp ? 'Hide' : 'What makes a good outcome?'}
+                </Text>
+              </TouchableOpacity>
+              {showSmartHelp && (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.smartBody}>
+                    A legally adequate EHCP outcome is Specific, Measurable, Achievable, Relevant
+                    and Time-bound (SEND Code 9.64–9.69). It describes what the child will achieve —
+                    not the support given (that's provision).
+                  </Text>
+                  <Text style={styles.smartGood}>
+                    ✅ "By July 2027, Samia will independently complete her 5-step morning routine
+                    in under 15 minutes on 4 of 5 school days."
+                  </Text>
+                  <Text style={styles.smartWeak}>
+                    ❌ "Samia will improve her independence." (vague · no measure · no timeframe)
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Target date */}
           <Text style={styles.fieldLabel}>Target review date (optional)</Text>
@@ -1127,6 +1185,46 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   fieldError: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#EF4444', marginTop: 4 },
+  fieldCaption: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: -4,
+    marginBottom: 8,
+  },
+  smartCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EDE9FE',
+    padding: 12,
+    marginTop: 8,
+  },
+  smartCheckRow: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
+  smartOk: { fontFamily: 'Inter_600SemiBold', fontSize: 12, color: '#10B981' },
+  smartTodo: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#9CA3AF' },
+  smartToggle: { fontFamily: 'Inter_600SemiBold', fontSize: 11.5, color: '#7C3AED', marginTop: 8 },
+  smartBody: { fontFamily: 'Inter_400Regular', fontSize: 11.5, color: '#6B7280', lineHeight: 16 },
+  smartGood: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11.5,
+    color: '#065F46',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 8,
+    lineHeight: 16,
+  },
+  smartWeak: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11.5,
+    color: '#991B1B',
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 6,
+    lineHeight: 16,
+  },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   categoryChip: {
     flexDirection: 'row',
