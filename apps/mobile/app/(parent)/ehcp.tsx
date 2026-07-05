@@ -40,6 +40,13 @@ import { useSubscriptionStore, canUseEHCP, requiredTierFor } from '@/stores/subs
 import { useResponsive } from '@/hooks/useResponsive';
 import { buildEvidencePack, renderEvidencePackHtml } from '@/lib/ehcp-report';
 import { buildOnePageProfile, renderOnePageProfileHtml } from '@/lib/one-page-profile';
+import {
+  fetchAnnualReview,
+  reviewRowToInputs,
+  computeReviewDue,
+  type ReviewDueStatus,
+} from '@/lib/annual-review';
+import { AnnualReviewForm } from '@/components/parent/AnnualReviewForm';
 import type { ChildProfileRow, EhcpOutcomeRow, EhcpCategory, EhcpStatus } from '@/types/database';
 
 const CATEGORIES: { value: EhcpCategory; label: string; emoji: string }[] = [
@@ -119,6 +126,16 @@ export default function EhcpScreen() {
     queryFn: () => fetchOutcomes(activeChildId!),
     enabled: !!activeChildId,
   });
+
+  // Annual review record — drives the "review due" banner and pre-fills the
+  // generated pack. Null until the parent has entered any review details.
+  const { data: reviewRow } = useQuery({
+    queryKey: ['annualReview', activeChildId],
+    queryFn: () => fetchAnnualReview(activeChildId!),
+    enabled: !!activeChildId,
+  });
+  const reviewDue: ReviewDueStatus | null = computeReviewDue(reviewRow ?? null);
+  const [reviewFormOpen, setReviewFormOpen] = useState(false);
 
   const saveMutation = useMutation({
     mutationFn: async (payload: { outcome_id?: string } & OutcomeForm) => {
@@ -221,9 +238,12 @@ export default function EhcpScreen() {
       // 12-month period is the standard for an annual review.
       const dateTo = format(new Date(), 'yyyy-MM-dd');
       const dateFrom = format(subDays(new Date(), 365), 'yyyy-MM-dd');
-      const pack = await buildEvidencePack(activeChildId, dateFrom, dateTo);
+      const [pack, savedReview] = await Promise.all([
+        buildEvidencePack(activeChildId, dateFrom, dateTo),
+        fetchAnnualReview(activeChildId),
+      ]);
       if (!pack) throw new Error('Could not load evidence');
-      const html = renderEvidencePackHtml(pack);
+      const html = renderEvidencePackHtml(pack, reviewRowToInputs(savedReview));
       await printHtml(html, 'EHCP Annual Review Pack', 'Annual review pack generated');
     } catch (err) {
       Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
@@ -422,6 +442,59 @@ export default function EhcpScreen() {
                 </View>
               )}
 
+              {/* Statutory timescale banner — when we know the EHCP issue or
+                  last-review date, show when the next annual review is due. */}
+              {reviewDue && (
+                <View
+                  style={[
+                    styles.dueBanner,
+                    reviewDue.urgency === 'overdue'
+                      ? styles.dueOverdue
+                      : reviewDue.urgency === 'due'
+                        ? styles.dueDue
+                        : reviewDue.urgency === 'soon'
+                          ? styles.dueSoon
+                          : styles.dueOk,
+                  ]}
+                >
+                  <Text style={styles.dueEmoji}>
+                    {reviewDue.urgency === 'overdue'
+                      ? '⚠️'
+                      : reviewDue.urgency === 'ok'
+                        ? '🗓️'
+                        : '⏰'}
+                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dueTitle}>Annual review {reviewDue.label}</Text>
+                    <Text style={styles.dueSub}>
+                      Due {reviewDue.due_date} · 12 months from the{' '}
+                      {reviewDue.anchored_to === 'last_review' ? 'last review' : 'EHCP issue date'}{' '}
+                      (SEND Regs 2014 reg.18)
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Complete review details — opens the capture form that
+                  pre-fills sections 2–5 of the generated pack. */}
+              <TouchableOpacity
+                style={styles.reviewDetailsBtn}
+                onPress={() => setReviewFormOpen(true)}
+                accessibilityLabel="Complete annual review details"
+              >
+                <Text style={styles.exportEmoji}>📝</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.profileTitle}>
+                    {reviewRow ? 'Edit review details' : 'Complete review details'}
+                  </Text>
+                  <Text style={styles.profileSub}>
+                    Parent contribution, the child's views, review dates and recommendation — saved
+                    so you fill them in once.
+                  </Text>
+                </View>
+                <Text style={styles.profileArrow}>›</Text>
+              </TouchableOpacity>
+
               {outcomes.length > 0 && (
                 <TouchableOpacity
                   style={styles.exportBtn}
@@ -533,6 +606,19 @@ export default function EhcpScreen() {
         }}
         onDelete={editing ? () => handleDelete(editing) : undefined}
       />
+
+      {/* Annual review capture form */}
+      {activeChildId && (
+        <AnnualReviewForm
+          visible={reviewFormOpen}
+          childId={activeChildId}
+          childName={activeChild?.child_name ?? 'this child'}
+          onClose={() => setReviewFormOpen(false)}
+          onSaved={() => {
+            void qc.invalidateQueries({ queryKey: ['annualReview', activeChildId] });
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -895,6 +981,35 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#7C3AED',
   },
+  // "Complete review details" — same white-card style as the profile button.
+  reviewDetailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 14,
+    marginBottom: 16,
+  },
+  // Statutory timescale banner
+  dueBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 14,
+  },
+  dueOk: { backgroundColor: '#F5F0FF', borderColor: '#EDE9FE' },
+  dueSoon: { backgroundColor: '#FEF9C3', borderColor: '#FDE68A' },
+  dueDue: { backgroundColor: '#FFEDD5', borderColor: '#FED7AA' },
+  dueOverdue: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
+  dueEmoji: { fontSize: 22 },
+  dueTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: '#111827', marginBottom: 2 },
+  dueSub: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#6B7280', lineHeight: 15 },
 
   // Modal styles
   modalHeader: {
