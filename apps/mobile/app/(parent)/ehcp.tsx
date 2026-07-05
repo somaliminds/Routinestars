@@ -39,6 +39,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useSubscriptionStore, canUseEHCP, requiredTierFor } from '@/stores/subscription.store';
 import { useResponsive } from '@/hooks/useResponsive';
 import { buildEvidencePack, renderEvidencePackHtml } from '@/lib/ehcp-report';
+import { buildOnePageProfile, renderOnePageProfileHtml } from '@/lib/one-page-profile';
 import type { ChildProfileRow, EhcpOutcomeRow, EhcpCategory, EhcpStatus } from '@/types/database';
 
 const CATEGORIES: { value: EhcpCategory; label: string; emoji: string }[] = [
@@ -167,15 +168,12 @@ export default function EhcpScreen() {
     },
   });
 
-  const [isExporting, setIsExporting] = useState(false);
-  const handleExport = useCallback(async () => {
-    if (!activeChildId) return;
-    setIsExporting(true);
-    try {
-      // Lazy-load the native modules. If the dev client was built before
-      // expo-print / expo-sharing were added (Sprint 2.3), the dynamic
-      // import resolves the JS shim but the native bridge is missing —
-      // surface a clear "rebuild required" message instead of crashing.
+  // Shared print+share pipeline for any generated HTML document. expo-print
+  // and expo-sharing are native modules lazy-loaded here so a dev client
+  // built before they were added still mounts the screen — only pressing an
+  // export button surfaces the "rebuild required" message.
+  const printHtml = useCallback(
+    async (html: string, dialogTitle: string, savedTitle: string): Promise<void> => {
       let Print: typeof import('expo-print');
       let Sharing: typeof import('expo-sharing');
       try {
@@ -188,43 +186,67 @@ export default function EhcpScreen() {
         );
         return;
       }
+      try {
+        const { uri } = await Print.printToFileAsync({ html, base64: false });
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'application/pdf',
+            dialogTitle,
+            UTI: 'com.adobe.pdf',
+          });
+        } else {
+          Alert.alert(savedTitle, `Saved to:\n${uri}\n\nDevice sharing is unavailable.`);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        if (msg.includes('ExpoPrint') || msg.includes('ExpoSharing')) {
+          Alert.alert(
+            'App update required',
+            'PDF export needs an EAS dev client rebuild. Run `eas build --profile development --platform android` and reinstall the new dev client.',
+          );
+        } else {
+          Alert.alert('Export failed', msg);
+        }
+      }
+    },
+    [],
+  );
 
+  const [isExporting, setIsExporting] = useState(false);
+  const handleExport = useCallback(async () => {
+    if (!activeChildId) return;
+    setIsExporting(true);
+    try {
       // 12-month period is the standard for an annual review.
       const dateTo = format(new Date(), 'yyyy-MM-dd');
       const dateFrom = format(subDays(new Date(), 365), 'yyyy-MM-dd');
       const pack = await buildEvidencePack(activeChildId, dateFrom, dateTo);
       if (!pack) throw new Error('Could not load evidence');
       const html = renderEvidencePackHtml(pack);
-      const { uri } = await Print.printToFileAsync({ html, base64: false });
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'EHCP Annual Review Pack',
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        Alert.alert(
-          'Evidence pack generated',
-          `Saved to:\n${uri}\n\nDevice sharing is unavailable.`,
-        );
-      }
+      await printHtml(html, 'EHCP Annual Review Pack', 'Annual review pack generated');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      // The native module lookup can throw at runtime even after the
-      // dynamic import resolves, if the dev client is stale.
-      if (msg.includes('ExpoPrint') || msg.includes('ExpoSharing')) {
-        Alert.alert(
-          'App update required',
-          'PDF export needs an EAS dev client rebuild. Run `eas build --profile development --platform android` and reinstall the new dev client.',
-        );
-      } else {
-        Alert.alert('Export failed', msg);
-      }
+      Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsExporting(false);
     }
-  }, [activeChildId]);
+  }, [activeChildId, printHtml]);
+
+  const [isExportingProfile, setIsExportingProfile] = useState(false);
+  const handleExportProfile = useCallback(async () => {
+    if (!activeChildId) return;
+    setIsExportingProfile(true);
+    try {
+      const data = await buildOnePageProfile(activeChildId);
+      if (!data) throw new Error('Could not load child profile');
+      const html = renderOnePageProfileHtml(data);
+      await printHtml(html, 'One Page Profile', 'One Page Profile generated');
+    } catch (err) {
+      Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsExportingProfile(false);
+    }
+  }, [activeChildId, printHtml]);
 
   const handleDelete = useCallback(
     (outcome: EhcpOutcomeRow) => {
@@ -424,6 +446,31 @@ export default function EhcpScreen() {
                   )}
                 </TouchableOpacity>
               )}
+
+              {/* One Page Profile — available regardless of EHCP outcomes; a
+                  person-centred summary useful at any SEND meeting. */}
+              <TouchableOpacity
+                style={styles.profileBtn}
+                onPress={handleExportProfile}
+                disabled={isExportingProfile}
+                accessibilityLabel="Generate One Page Profile"
+              >
+                {isExportingProfile ? (
+                  <ActivityIndicator color="#5B21B6" />
+                ) : (
+                  <>
+                    <Text style={styles.exportEmoji}>🌟</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.profileTitle}>Generate One Page Profile</Text>
+                      <Text style={styles.profileSub}>
+                        A person-centred summary to share with school, therapists and carers.
+                        Auto-fills the basics; you complete the rest.
+                      </Text>
+                    </View>
+                    <Text style={styles.profileArrow}>→</Text>
+                  </>
+                )}
+              </TouchableOpacity>
 
               {(['ACTIVE', 'ACHIEVED', 'DISCONTINUED'] as EhcpStatus[]).map((status) => {
                 const list = grouped[status];
@@ -817,6 +864,36 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_700Bold',
     fontSize: 20,
     color: '#FFFFFF',
+  },
+  // Secondary export (One Page Profile) — white card with purple accent so
+  // it reads as a distinct, always-available action beside the primary pack.
+  profileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#7C3AED',
+    padding: 14,
+    marginBottom: 16,
+  },
+  profileTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 15,
+    color: '#5B21B6',
+    marginBottom: 2,
+  },
+  profileSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: '#6B7280',
+    lineHeight: 15,
+  },
+  profileArrow: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 20,
+    color: '#7C3AED',
   },
 
   // Modal styles
