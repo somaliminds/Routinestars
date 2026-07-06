@@ -700,6 +700,14 @@ export type Database = {
         Args: { p_child_id: string; p_stars: number };
         Returns: undefined;
       };
+      accept_my_care_team_invitations: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
+      accept_professional_consents: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

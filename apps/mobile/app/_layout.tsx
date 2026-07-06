@@ -39,7 +39,7 @@ function AuthGuard() {
   const router = useRouter();
   const segments = useSegments();
   const { session, isLoading } = useAuthStore();
-  const [role, setRole] = useState<'parent' | 'child' | 'ta' | null>(null);
+  const [role, setRole] = useState<'parent' | 'child' | 'ta' | 'professional' | null>(null);
   const [roleLoading, setRoleLoading] = useState(false);
   /** True when this parent has the placeholder PIN and must complete setup-pin */
   const [needsPinSetup, setNeedsPinSetup] = useState<boolean | null>(null);
@@ -97,6 +97,47 @@ function AuthGuard() {
     [],
   );
 
+  /**
+   * Decide between 'parent' and 'professional'. A user who has been granted
+   * active consent to a child's data (via the consent ledger) AND has no
+   * child_profiles of their own is a support professional — route them to
+   * the professional portal. Users who are also parents default to 'parent'.
+   *
+   * Claims any pending consents (fills professional_id) on first sign-in.
+   * Wrapped in try/catch so a DB without the Phase-B tables (pre-migration)
+   * never blocks auth — it just resolves 'parent'.
+   */
+  const detectProfessionalRole = useCallback(
+    async (userId: string, email: string | undefined): Promise<'parent' | 'professional'> => {
+      if (!email) return 'parent';
+      try {
+        // Link this account to any consents addressed to its email (idempotent).
+        await supabase.rpc('accept_professional_consents');
+
+        const today = new Date().toISOString().slice(0, 10);
+        const [{ count: ownChildren }, { data: consents }] = await Promise.all([
+          supabase
+            .from('child_profiles')
+            .select('profile_id', { count: 'exact', head: true })
+            .eq('parent_id', userId),
+          supabase
+            .from('consent_records')
+            .select('withdrawn_at, expiry_date')
+            .eq('professional_id', userId),
+        ]);
+
+        const hasActive = (consents ?? []).some(
+          (c) => !c.withdrawn_at && (c.expiry_date ?? '') >= today,
+        );
+        if (hasActive && (ownChildren ?? 0) === 0) return 'professional';
+        return 'parent';
+      } catch {
+        return 'parent';
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!session) {
       setRole(null);
@@ -113,12 +154,20 @@ function AuthGuard() {
           .single();
         const baseRole = (userRow?.role as 'parent' | 'child') ?? 'parent';
 
-        // 'parent' may resolve to 'ta' on second look — check care_team_members
+        // 'parent' may resolve to 'ta' or 'professional' on second look.
         if (baseRole === 'parent') {
-          const resolved = await detectTaRole(session.user.id, session.user.email);
-          setRole(resolved);
-          // PIN gate only applies to real parents; TAs don't have a PIN.
-          setNeedsPinSetup(resolved === 'parent' ? await checkPinStatus(session.user.id) : false);
+          const taResolved = await detectTaRole(session.user.id, session.user.email);
+          if (taResolved === 'ta') {
+            setRole('ta');
+            setNeedsPinSetup(false);
+          } else {
+            const profResolved = await detectProfessionalRole(session.user.id, session.user.email);
+            setRole(profResolved);
+            // PIN gate only applies to real parents; TAs/professionals have none.
+            setNeedsPinSetup(
+              profResolved === 'parent' ? await checkPinStatus(session.user.id) : false,
+            );
+          }
         } else {
           setRole(baseRole);
           setNeedsPinSetup(false);
@@ -130,7 +179,10 @@ function AuthGuard() {
         setRoleLoading(false);
       }
     })();
-  }, [session?.user.id, session?.user.email, checkPinStatus, detectTaRole]);
+    // Intentionally keyed on the stable id/email, not the whole session object,
+    // to avoid re-running role detection on every token refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user.id, session?.user.email, checkPinStatus, detectTaRole, detectProfessionalRole]);
 
   // Re-check PIN status whenever the user navigates back into the parent
   // app or out of setup-pin — so the stale needsPinSetup=true flag from
@@ -147,6 +199,7 @@ function AuthGuard() {
         if (!stillNeeds) setNeedsPinSetup(false);
       })();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segments[0], segments[1], session?.user.id, role, needsPinSetup, checkPinStatus]);
 
   useEffect(() => {
@@ -189,8 +242,7 @@ function AuthGuard() {
       'choose-plan',
       'schedule-wizard',
     ]);
-    const onWhitelistedAuthRoute =
-      inAuthGroup && AUTH_GROUP_WHITELIST.has(currentRoute ?? '');
+    const onWhitelistedAuthRoute = inAuthGroup && AUTH_GROUP_WHITELIST.has(currentRoute ?? '');
 
     if (!session) {
       if (!inAuthGroup) router.replace('/(auth)/welcome');
@@ -211,19 +263,44 @@ function AuthGuard() {
       return;
     }
 
+    // Professional portal home — not yet in the typed-routes generated types.
+    const professionalHome = '/(professional)/children' as never;
+    const group0 = segments[0] as string | undefined;
+
     if (inAuthGroup && !onWhitelistedAuthRoute) {
       if (role === 'parent') router.replace('/(parent)/dashboard');
       else if (role === 'ta') router.replace('/(ta)/today');
+      else if (role === 'professional') router.replace(professionalHome);
       else router.replace('/(child)/select-profile');
       return;
     }
 
     // Cross-role guards: keep each role in its own group.
+    const inProfessionalGroup = group0 === '(professional)';
     if (role === 'child' && inParentGroup) router.replace('/(child)/select-profile');
     if (role === 'ta' && inParentGroup) router.replace('/(ta)/today');
-    if (role === 'ta' && segments[0] === '(child)') router.replace('/(ta)/today');
-    if (role === 'parent' && segments[0] === '(ta)') router.replace('/(parent)/dashboard');
-  }, [session, isLoading, role, roleLoading, needsPinSetup, segments, router, requireOnResume, clearRequireOnResume]);
+    if (role === 'ta' && group0 === '(child)') router.replace('/(ta)/today');
+    if (role === 'parent' && group0 === '(ta)') router.replace('/(parent)/dashboard');
+    // Professionals stay in their own group; everyone else is kept out of it.
+    if (role === 'professional' && (inParentGroup || group0 === '(child)' || group0 === '(ta)'))
+      router.replace(professionalHome);
+    if (role !== 'professional' && inProfessionalGroup) {
+      if (role === 'parent') router.replace('/(parent)/dashboard');
+      else if (role === 'ta') router.replace('/(ta)/today');
+      else router.replace('/(child)/select-profile');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    session,
+    isLoading,
+    role,
+    roleLoading,
+    needsPinSetup,
+    segments,
+    router,
+    requireOnResume,
+    clearRequireOnResume,
+  ]);
 
   return null;
 }
@@ -302,6 +379,7 @@ function RootLayout() {
           <Stack.Screen name="(child)" />
           <Stack.Screen name="(parent)" />
           <Stack.Screen name="(ta)" />
+          <Stack.Screen name="(professional)" />
           <Stack.Screen name="subscription/success" />
           <Stack.Screen name="subscription/cancel" />
         </Stack>

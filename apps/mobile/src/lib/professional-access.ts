@@ -129,6 +129,20 @@ export async function grantConsent(input: ConsentInsert): Promise<void> {
   if (error) throw error;
 }
 
+/** Consents naming the signed-in professional (RLS filters to their own). */
+export async function fetchMyConsents(): Promise<ConsentRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from('consent_records')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return data ?? [];
+  } catch {
+    return [];
+  }
+}
+
 /** All consents (active + historical) for a child, newest first. */
 export async function listConsentsForChild(childId: string): Promise<ConsentRow[]> {
   try {
