@@ -49,6 +49,7 @@ import {
 } from '@/lib/annual-review';
 import { AnnualReviewForm } from '@/components/parent/AnnualReviewForm';
 import { ApdrCyclesModal } from '@/components/parent/ApdrCyclesModal';
+import { ProfessionalConsentModal } from '@/components/parent/ProfessionalConsentModal';
 import type { ChildProfileRow, EhcpOutcomeRow, EhcpCategory, EhcpStatus } from '@/types/database';
 
 // The first four align to the statutory "areas of need" (SEND Code 6.27–6.39):
@@ -143,6 +144,7 @@ export default function EhcpScreen() {
   const reviewDue: ReviewDueStatus | null = computeReviewDue(reviewRow ?? null);
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [apdrOutcome, setApdrOutcome] = useState<EhcpOutcomeRow | null>(null);
+  const [consentOpen, setConsentOpen] = useState(false);
 
   const saveMutation = useMutation({
     mutationFn: async (payload: { outcome_id?: string } & OutcomeForm) => {
@@ -518,6 +520,23 @@ export default function EhcpScreen() {
                 <Text style={styles.profileArrow}>›</Text>
               </TouchableOpacity>
 
+              {/* Support team — grant/withdraw professional access + audit log */}
+              <TouchableOpacity
+                style={styles.reviewDetailsBtn}
+                onPress={() => setConsentOpen(true)}
+                accessibilityLabel="Manage professional access"
+              >
+                <Text style={styles.exportEmoji}>🤝</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.profileTitle}>Support team access</Text>
+                  <Text style={styles.profileSub}>
+                    Give a SENCo, therapist or other professional secure, time-limited access to
+                    this child's data. Withdraw any time. Every access is logged.
+                  </Text>
+                </View>
+                <Text style={styles.profileArrow}>›</Text>
+              </TouchableOpacity>
+
               {outcomes.length > 0 && (
                 <TouchableOpacity
                   style={styles.exportBtn}
@@ -680,6 +699,17 @@ export default function EhcpScreen() {
           outcomeText={apdrOutcome.outcome_text}
           childId={activeChildId}
           onClose={() => setApdrOutcome(null)}
+        />
+      )}
+
+      {/* Professional consent management */}
+      {activeChildId && userId && (
+        <ProfessionalConsentModal
+          visible={consentOpen}
+          childId={activeChildId}
+          childName={activeChild?.child_name ?? 'this child'}
+          parentUserId={userId}
+          onClose={() => setConsentOpen(false)}
         />
       )}
     </View>
