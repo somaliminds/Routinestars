@@ -616,6 +616,83 @@ export type Database = {
         };
         Relationships: [];
       };
+      consent_records: {
+        Row: {
+          consent_id: string;
+          child_id: string;
+          consent_given_by: string;
+          relationship: 'parent' | 'guardian';
+          consent_date: string;
+          professional_id: string | null;
+          professional_email: string;
+          professional_role: string;
+          professional_org: string | null;
+          data_categories: string[];
+          purpose: string | null;
+          expiry_date: string;
+          withdrawn_at: string | null;
+          withdrawn_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          consent_id?: string;
+          child_id: string;
+          consent_given_by: string;
+          relationship?: 'parent' | 'guardian';
+          consent_date?: string;
+          professional_id?: string | null;
+          professional_email: string;
+          professional_role: string;
+          professional_org?: string | null;
+          data_categories?: string[];
+          purpose?: string | null;
+          expiry_date: string;
+          withdrawn_at?: string | null;
+          withdrawn_by?: string | null;
+        };
+        Update: {
+          professional_id?: string | null;
+          professional_role?: string;
+          professional_org?: string | null;
+          data_categories?: string[];
+          purpose?: string | null;
+          expiry_date?: string;
+          withdrawn_at?: string | null;
+          withdrawn_by?: string | null;
+        };
+        Relationships: [];
+      };
+      access_audit_log: {
+        Row: {
+          event_id: string;
+          occurred_at: string;
+          actor_id: string;
+          actor_role: string | null;
+          child_id: string;
+          data_categories: string[];
+          action: 'VIEW' | 'CONTRIBUTE' | 'EXPORT';
+          purpose: string | null;
+          lawful_basis: string | null;
+          consent_id: string | null;
+          decision_rationale: string | null;
+        };
+        Insert: {
+          event_id?: string;
+          occurred_at?: string;
+          actor_id: string;
+          actor_role?: string | null;
+          child_id: string;
+          data_categories?: string[];
+          action: 'VIEW' | 'CONTRIBUTE' | 'EXPORT';
+          purpose?: string | null;
+          lawful_basis?: string | null;
+          consent_id?: string | null;
+          decision_rationale?: string | null;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
