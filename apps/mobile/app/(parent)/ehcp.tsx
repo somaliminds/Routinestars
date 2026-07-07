@@ -50,6 +50,12 @@ import {
 import { AnnualReviewForm } from '@/components/parent/AnnualReviewForm';
 import { ApdrCyclesModal } from '@/components/parent/ApdrCyclesModal';
 import { ProfessionalConsentModal } from '@/components/parent/ProfessionalConsentModal';
+import {
+  listContributions,
+  ROLE_LABEL,
+  CONTRIBUTION_KIND_LABEL,
+  type ProfessionalRole,
+} from '@/lib/professional-access';
 import type { ChildProfileRow, EhcpOutcomeRow, EhcpCategory, EhcpStatus } from '@/types/database';
 
 // The first four align to the statutory "areas of need" (SEND Code 6.27–6.39):
@@ -142,6 +148,14 @@ export default function EhcpScreen() {
     enabled: !!activeChildId,
   });
   const reviewDue: ReviewDueStatus | null = computeReviewDue(reviewRow ?? null);
+
+  // Contributions professionals have added for this child (parents read all).
+  const { data: contributions = [] } = useQuery({
+    queryKey: ['parentContributions', activeChildId],
+    queryFn: () => listContributions(activeChildId!),
+    enabled: !!activeChildId,
+  });
+
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [apdrOutcome, setApdrOutcome] = useState<EhcpOutcomeRow | null>(null);
   const [consentOpen, setConsentOpen] = useState(false);
@@ -536,6 +550,37 @@ export default function EhcpScreen() {
                 </View>
                 <Text style={styles.profileArrow}>›</Text>
               </TouchableOpacity>
+
+              {/* Professional input — what the support team has added */}
+              {contributions.length > 0 && (
+                <View style={styles.contribBlock}>
+                  <Text style={styles.contribHeading}>Professional input</Text>
+                  <Text style={styles.contribIntro}>
+                    Advice and suggested targets added by your support team. These feed into the
+                    annual review.
+                  </Text>
+                  {contributions.map((c) => (
+                    <View key={c.contribution_id} style={styles.contribItem}>
+                      <View style={styles.contribItemTop}>
+                        <Text style={styles.contribItemKind}>
+                          {CONTRIBUTION_KIND_LABEL[
+                            c.kind as keyof typeof CONTRIBUTION_KIND_LABEL
+                          ] ?? c.kind}
+                        </Text>
+                        <Text style={styles.contribItemRole}>
+                          {c.author_role
+                            ? (ROLE_LABEL[c.author_role as ProfessionalRole] ?? c.author_role)
+                            : 'Professional'}
+                        </Text>
+                      </View>
+                      <Text style={styles.contribItemText}>{c.content}</Text>
+                      <Text style={styles.contribItemDate}>
+                        {format(new Date(c.created_at), 'd MMM yyyy')}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               {outcomes.length > 0 && (
                 <TouchableOpacity
@@ -1159,6 +1204,55 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_700Bold',
     fontSize: 20,
     color: '#7C3AED',
+  },
+  // Professional input — parent-facing read of what the support team added.
+  contribBlock: { marginTop: 4, marginBottom: 8 },
+  contribHeading: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 16,
+    color: '#5B21B6',
+    marginBottom: 4,
+  },
+  contribIntro: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12.5,
+    color: '#6B7280',
+    lineHeight: 17,
+    marginBottom: 10,
+  },
+  contribItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 14,
+    marginBottom: 8,
+  },
+  contribItemTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  contribItemKind: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10.5,
+    color: '#5B21B6',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  contribItemRole: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#9CA3AF' },
+  contribItemText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13.5,
+    color: '#111827',
+    lineHeight: 19,
+  },
+  contribItemDate: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10.5,
+    color: '#9CA3AF',
+    marginTop: 6,
   },
   // "Complete review details" — same white-card style as the profile button.
   reviewDetailsBtn: {
