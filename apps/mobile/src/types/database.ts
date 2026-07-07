@@ -738,6 +738,16 @@ export type Database = {
         Args: Record<string, never>;
         Returns: number;
       };
+      get_boot_context: {
+        Args: Record<string, never>;
+        Returns: {
+          role: string;
+          own_children: number;
+          has_ta_assignment: boolean;
+          has_active_consent: boolean;
+          needs_pin_setup: boolean;
+        };
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

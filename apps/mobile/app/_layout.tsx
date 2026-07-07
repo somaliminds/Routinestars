@@ -138,6 +138,78 @@ function AuthGuard() {
     [],
   );
 
+  type ResolvedRole = { role: 'parent' | 'child' | 'ta' | 'professional'; needsPinSetup: boolean };
+
+  // Apply the SAME role/PIN decision the legacy JS path made, but from the
+  // single get_boot_context() payload. TA wins over professional; both require
+  // the user to own no children of their own; PIN gate only applies to parents.
+  const deriveFromBoot = useCallback(
+    (ctx: {
+      role: string;
+      own_children: number;
+      has_ta_assignment: boolean;
+      has_active_consent: boolean;
+      needs_pin_setup: boolean;
+    }): ResolvedRole => {
+      const baseRole = ctx.role === 'child' ? 'child' : 'parent';
+      if (baseRole === 'parent') {
+        if (ctx.has_ta_assignment && ctx.own_children === 0) {
+          return { role: 'ta', needsPinSetup: false };
+        }
+        if (ctx.has_active_consent && ctx.own_children === 0) {
+          return { role: 'professional', needsPinSetup: false };
+        }
+        return { role: 'parent', needsPinSetup: ctx.needs_pin_setup };
+      }
+      return { role: 'child', needsPinSetup: false };
+    },
+    [],
+  );
+
+  /**
+   * Resolve role + PIN state. Fast path: one get_boot_context() round-trip
+   * (migration 031). If that RPC is unavailable (pre-migration DB) or errors,
+   * fall back to the proven multi-query detection so auth never breaks.
+   */
+  const resolveRoleAndPin = useCallback(
+    async (userId: string, email: string | undefined): Promise<ResolvedRole> => {
+      try {
+        const { data, error } = await supabase.rpc('get_boot_context');
+        if (!error && data) {
+          return deriveFromBoot(
+            data as {
+              role: string;
+              own_children: number;
+              has_ta_assignment: boolean;
+              has_active_consent: boolean;
+              needs_pin_setup: boolean;
+            },
+          );
+        }
+      } catch {
+        // fall through to the legacy sequential path
+      }
+
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+      const baseRole = (userRow?.role as 'parent' | 'child') ?? 'parent';
+      if (baseRole !== 'parent') return { role: 'child', needsPinSetup: false };
+
+      const taResolved = await detectTaRole(userId, email);
+      if (taResolved === 'ta') return { role: 'ta', needsPinSetup: false };
+
+      const profResolved = await detectProfessionalRole(userId, email);
+      return {
+        role: profResolved,
+        needsPinSetup: profResolved === 'parent' ? await checkPinStatus(userId) : false,
+      };
+    },
+    [deriveFromBoot, detectTaRole, detectProfessionalRole, checkPinStatus],
+  );
+
   useEffect(() => {
     if (!session) {
       setRole(null);
@@ -147,31 +219,9 @@ function AuthGuard() {
     setRoleLoading(true);
     void (async () => {
       try {
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
-        const baseRole = (userRow?.role as 'parent' | 'child') ?? 'parent';
-
-        // 'parent' may resolve to 'ta' or 'professional' on second look.
-        if (baseRole === 'parent') {
-          const taResolved = await detectTaRole(session.user.id, session.user.email);
-          if (taResolved === 'ta') {
-            setRole('ta');
-            setNeedsPinSetup(false);
-          } else {
-            const profResolved = await detectProfessionalRole(session.user.id, session.user.email);
-            setRole(profResolved);
-            // PIN gate only applies to real parents; TAs/professionals have none.
-            setNeedsPinSetup(
-              profResolved === 'parent' ? await checkPinStatus(session.user.id) : false,
-            );
-          }
-        } else {
-          setRole(baseRole);
-          setNeedsPinSetup(false);
-        }
+        const resolved = await resolveRoleAndPin(session.user.id, session.user.email);
+        setRole(resolved.role);
+        setNeedsPinSetup(resolved.needsPinSetup);
       } catch {
         setRole('parent');
         setNeedsPinSetup(false);
@@ -182,7 +232,7 @@ function AuthGuard() {
     // Intentionally keyed on the stable id/email, not the whole session object,
     // to avoid re-running role detection on every token refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user.id, session?.user.email, checkPinStatus, detectTaRole, detectProfessionalRole]);
+  }, [session?.user.id, session?.user.email, resolveRoleAndPin]);
 
   // Re-check PIN status whenever the user navigates back into the parent
   // app or out of setup-pin — so the stale needsPinSetup=true flag from
