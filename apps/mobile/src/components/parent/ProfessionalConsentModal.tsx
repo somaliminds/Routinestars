@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Share,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -109,8 +110,31 @@ export function ProfessionalConsentModal({
     setPurpose('');
   };
 
+  /**
+   * Send the professional a plain-language invite (via WhatsApp / email / SMS
+   * — the OS share sheet). Closes the onboarding gap: consent is keyed to
+   * their email, so they must sign up with that exact address to gain access.
+   */
+  const shareInvite = async (proEmail: string, roleLabel: string) => {
+    try {
+      await Share.share({
+        message:
+          `Hi, I'd like to share ${childName}'s RoutineStars profile with you ` +
+          `(as ${roleLabel}) to support their SEND provision.\n\n` +
+          `Please download the RoutineStars app and sign up using this exact ` +
+          `email address:\n\n${proEmail}\n\n` +
+          `Once you've signed up with that email, the information I've chosen ` +
+          `to share will appear in your professional view. You can only see ` +
+          `what I've approved, and I can withdraw access at any time.`,
+      });
+    } catch {
+      // User dismissed the share sheet — nothing to do.
+    }
+  };
+
   const handleGrant = async () => {
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+    const proEmail = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(proEmail)) {
       Alert.alert('Enter a valid email', "The professional's email is required.");
       return;
     }
@@ -123,19 +147,26 @@ export function ProfessionalConsentModal({
       await grantConsent({
         child_id: childId,
         consent_given_by: parentUserId,
-        professional_email: email.trim().toLowerCase(),
+        professional_email: proEmail,
         professional_role: role,
         professional_org: org.trim() || null,
         data_categories: cats,
         purpose: purpose.trim() || null,
         expiry_date: expiry,
       });
+      const roleLabel = ROLE_LABEL[role];
       resetForm();
       setShowGrant(false);
       await load();
       Alert.alert(
         'Access granted',
-        `${email.trim()} can access ${childName}'s data once they sign up with that email. You can withdraw access at any time.`,
+        `${proEmail} can access ${childName}'s data once they sign up with that ` +
+          `exact email. Send them an invite so they know to join — you can ` +
+          `withdraw access at any time.`,
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Share invite', onPress: () => void shareInvite(proEmail, roleLabel) },
+        ],
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -245,12 +276,26 @@ export function ProfessionalConsentModal({
                         {c.withdrawn_at ? 'Withdrawn' : `Expires ${c.expiry_date}`}
                       </Text>
                       {active && (
-                        <TouchableOpacity
-                          style={styles.withdrawBtn}
-                          onPress={() => handleWithdraw(c)}
-                        >
-                          <Text style={styles.withdrawText}>Withdraw access</Text>
-                        </TouchableOpacity>
+                        <View style={styles.consentActions}>
+                          <TouchableOpacity
+                            style={styles.inviteBtn}
+                            onPress={() =>
+                              void shareInvite(
+                                c.professional_email,
+                                ROLE_LABEL[c.professional_role as ProfessionalRole] ??
+                                  c.professional_role,
+                              )
+                            }
+                          >
+                            <Text style={styles.inviteText}>Send invite</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.withdrawBtn}
+                            onPress={() => handleWithdraw(c)}
+                          >
+                            <Text style={styles.withdrawText}>Withdraw access</Text>
+                          </TouchableOpacity>
+                        </View>
                       )}
                     </View>
                   );
@@ -439,12 +484,21 @@ const styles = StyleSheet.create({
   pillInactive: { backgroundColor: '#9CA3AF' },
   pillText: { fontFamily: 'Inter_600SemiBold', fontSize: 10.5, color: '#FFFFFF' },
   consentMeta: { fontFamily: 'Inter_400Regular', fontSize: 11.5, color: '#6B7280', marginTop: 5 },
+  consentActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  inviteBtn: {
+    flex: 1,
+    backgroundColor: '#EDE9FE',
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  inviteText: { fontFamily: 'Inter_600SemiBold', fontSize: 12.5, color: '#5B21B6' },
   withdrawBtn: {
+    flex: 1,
     backgroundColor: '#FEE2E2',
     borderRadius: 10,
     paddingVertical: 8,
     alignItems: 'center',
-    marginTop: 10,
   },
   withdrawText: { fontFamily: 'Inter_600SemiBold', fontSize: 12.5, color: '#DC2626' },
   addBtn: {
