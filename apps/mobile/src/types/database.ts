@@ -693,6 +693,36 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      professional_contributions: {
+        Row: {
+          contribution_id: string;
+          child_id: string;
+          outcome_id: string | null;
+          author_id: string;
+          author_role: string | null;
+          author_email: string | null;
+          kind: 'ADVICE' | 'TARGET' | 'NOTE';
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          contribution_id?: string;
+          child_id: string;
+          outcome_id?: string | null;
+          author_id: string;
+          author_role?: string | null;
+          author_email?: string | null;
+          kind?: 'ADVICE' | 'TARGET' | 'NOTE';
+          content: string;
+        };
+        Update: {
+          outcome_id?: string | null;
+          kind?: 'ADVICE' | 'TARGET' | 'NOTE';
+          content?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

@@ -216,6 +216,56 @@ export async function logAccess(entry: AuditInsert): Promise<void> {
   }
 }
 
+// ── Professional contributions (Phase B4) ───────────────────────────────────
+
+export type ContributionRow = Database['public']['Tables']['professional_contributions']['Row'];
+export type ContributionInsert =
+  Database['public']['Tables']['professional_contributions']['Insert'];
+export type ContributionKind = 'ADVICE' | 'TARGET' | 'NOTE';
+
+export const CONTRIBUTION_KIND_LABEL: Record<ContributionKind, string> = {
+  ADVICE: 'Advice',
+  TARGET: 'Suggested target',
+  NOTE: 'Note',
+};
+
+/** Add a professional contribution + write a CONTRIBUTE audit entry. */
+export async function addContribution(input: ContributionInsert): Promise<void> {
+  const { error } = await supabase.from('professional_contributions').insert(input);
+  if (error) throw error;
+  await logAccess({
+    actor_id: input.author_id,
+    actor_role: input.author_role ?? null,
+    child_id: input.child_id,
+    data_categories: ['OUTCOMES'],
+    action: 'CONTRIBUTE',
+    lawful_basis: 'CONSENT',
+  });
+}
+
+/** All contributions for a child (parent view = all; professional = own, via RLS). */
+export async function listContributions(childId: string): Promise<ContributionRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from('professional_contributions')
+      .select('*')
+      .eq('child_id', childId)
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteContribution(contributionId: string): Promise<void> {
+  const { error } = await supabase
+    .from('professional_contributions')
+    .delete()
+    .eq('contribution_id', contributionId);
+  if (error) throw error;
+}
+
 /** The access log for a child (parent transparency view). */
 export async function listAuditForChild(childId: string): Promise<AuditRow[]> {
   try {

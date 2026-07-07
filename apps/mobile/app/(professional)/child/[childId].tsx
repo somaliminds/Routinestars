@@ -6,20 +6,23 @@
  * the granted scope in the UI and writes a VIEW entry to the access audit
  * log on load (the parent sees every access — ICO Children's Code #11).
  *
- * Read-only. Professional contributions (advice/targets) are Phase B4.
+ * Read-only for the child's core records. The professional CAN add their own
+ * contributions (advice / suggested targets / notes) — parents read them all.
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { differenceInYears, format, subDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
@@ -27,8 +30,14 @@ import {
   fetchMyConsents,
   isConsentActive,
   logAccess,
+  addContribution,
+  listContributions,
+  deleteContribution,
+  CONTRIBUTION_KIND_LABEL,
   ROLE_LABEL,
   type ConsentRow,
+  type ContributionRow,
+  type ContributionKind,
   type DataCategory,
   type ProfessionalRole,
 } from '@/lib/professional-access';
@@ -182,6 +191,73 @@ export default function ProfessionalChildDetail() {
 
   const has = (c: DataCategory) => data?.categories.includes(c) ?? false;
 
+  // Contributions (this professional's own input for this child).
+  const qc = useQueryClient();
+  const { data: contributions = [] } = useQuery({
+    queryKey: ['contributions', childId],
+    queryFn: () => listContributions(childId!),
+    enabled: !!childId,
+  });
+  const [showForm, setShowForm] = useState(false);
+  const [kind, setKind] = useState<ContributionKind>('ADVICE');
+  const [content, setContent] = useState('');
+  const [outcomeId, setOutcomeId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const submitContribution = async () => {
+    if (!session || !data?.consent || content.trim().length < 3) {
+      Alert.alert('Add some detail', 'Please write your input before saving.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await addContribution({
+        child_id: childId!,
+        outcome_id: outcomeId,
+        author_id: session.user.id,
+        author_role: data.consent.professional_role,
+        author_email: session.user.email ?? null,
+        kind,
+        content: content.trim(),
+      });
+      setContent('');
+      setOutcomeId(null);
+      setKind('ADVICE');
+      setShowForm(false);
+      void qc.invalidateQueries({ queryKey: ['contributions', childId] });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      Alert.alert(
+        'Could not save',
+        msg.includes('professional_contributions') || msg.includes('does not exist')
+          ? 'Contribution storage is not set up yet. The parent’s app needs database migration 030.'
+          : msg,
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const removeContribution = (id: string) => {
+    Alert.alert('Delete', 'Delete this contribution?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              await deleteContribution(id);
+              void qc.invalidateQueries({ queryKey: ['contributions', childId] });
+            } catch (err) {
+              Alert.alert('Failed', err instanceof Error ? err.message : 'Unknown error');
+            }
+          })();
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
@@ -294,6 +370,110 @@ export default function ProfessionalChildDetail() {
               </Empty>
             </Section>
           )}
+
+          {/* Your input — advice / targets the parent will see */}
+          <Section title="Your input">
+            {contributions.length === 0 && !showForm && (
+              <Empty>Add advice or a suggested target. The parent sees everything you add.</Empty>
+            )}
+            {contributions.map((c: ContributionRow) => (
+              <View key={c.contribution_id} style={styles.contribCard}>
+                <View style={styles.contribTop}>
+                  <Text style={styles.contribKind}>{CONTRIBUTION_KIND_LABEL[c.kind]}</Text>
+                  <TouchableOpacity onPress={() => removeContribution(c.contribution_id)}>
+                    <Text style={styles.contribDelete}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.contribText}>{c.content}</Text>
+                <Text style={styles.contribTime}>
+                  {format(new Date(c.created_at), 'd MMM yyyy')}
+                </Text>
+              </View>
+            ))}
+
+            {showForm ? (
+              <View style={styles.formCard}>
+                <View style={styles.kindRow}>
+                  {(['ADVICE', 'TARGET', 'NOTE'] as ContributionKind[]).map((k) => (
+                    <TouchableOpacity
+                      key={k}
+                      style={[styles.kindChip, kind === k && styles.kindChipOn]}
+                      onPress={() => setKind(k)}
+                    >
+                      <Text style={[styles.kindText, kind === k && styles.kindTextOn]}>
+                        {CONTRIBUTION_KIND_LABEL[k]}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {has('OUTCOMES') && data.outcomes.length > 0 && (
+                  <>
+                    <Text style={styles.tagLabel}>Tag to an outcome (optional)</Text>
+                    <View style={styles.kindRow}>
+                      <TouchableOpacity
+                        style={[styles.kindChip, outcomeId === null && styles.kindChipOn]}
+                        onPress={() => setOutcomeId(null)}
+                      >
+                        <Text style={[styles.kindText, outcomeId === null && styles.kindTextOn]}>
+                          General
+                        </Text>
+                      </TouchableOpacity>
+                      {data.outcomes.map((o) => (
+                        <TouchableOpacity
+                          key={o.outcome_id}
+                          style={[styles.kindChip, outcomeId === o.outcome_id && styles.kindChipOn]}
+                          onPress={() => setOutcomeId(o.outcome_id)}
+                        >
+                          <Text
+                            style={[
+                              styles.kindText,
+                              outcomeId === o.outcome_id && styles.kindTextOn,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {o.category}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                <TextInput
+                  style={styles.contentInput}
+                  value={content}
+                  onChangeText={setContent}
+                  placeholder="Write your advice, target or note…"
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  textAlignVertical="top"
+                />
+                <View style={styles.formActions}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowForm(false);
+                      setContent('');
+                    }}
+                    style={styles.cancelBtn}
+                  >
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => void submitContribution()}
+                    style={styles.saveBtn}
+                    disabled={submitting}
+                  >
+                    <Text style={styles.saveText}>{submitting ? 'Saving…' : 'Save'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)}>
+                <Text style={styles.addBtnText}>+ Add input</Text>
+              </TouchableOpacity>
+            )}
+          </Section>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -400,4 +580,88 @@ const styles = StyleSheet.create({
   zoneName: { fontFamily: 'Inter_600SemiBold', fontSize: 12.5, color: '#374151' },
   zoneTime: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#9CA3AF' },
   empty: { fontFamily: 'Inter_400Regular', fontSize: 12.5, color: '#9CA3AF', lineHeight: 17 },
+
+  // Contributions
+  contribCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 12,
+    marginBottom: 8,
+  },
+  contribTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  contribKind: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10.5,
+    color: '#5B21B6',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  contribDelete: { fontFamily: 'Inter_600SemiBold', fontSize: 11.5, color: '#EF4444' },
+  contribText: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#111827', lineHeight: 18 },
+  contribTime: { fontFamily: 'Inter_400Regular', fontSize: 10.5, color: '#9CA3AF', marginTop: 6 },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 12,
+  },
+  kindRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  kindChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#FFFFFF',
+    maxWidth: 160,
+  },
+  kindChipOn: { backgroundColor: '#7C3AED', borderColor: '#7C3AED' },
+  kindText: { fontFamily: 'Inter_600SemiBold', fontSize: 12, color: '#6D28D9' },
+  kindTextOn: { color: '#FFFFFF' },
+  tagLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  contentInput: {
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    borderRadius: 10,
+    padding: 12,
+    minHeight: 90,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13.5,
+    color: '#111827',
+    backgroundColor: '#FAF7FF',
+  },
+  formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 12 },
+  cancelBtn: { paddingHorizontal: 16, paddingVertical: 10 },
+  cancelText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#6B7280' },
+  saveBtn: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 10,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+  },
+  saveText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#FFFFFF' },
+  addBtn: {
+    borderWidth: 1.5,
+    borderColor: '#7C3AED',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  addBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 13.5, color: '#7C3AED' },
 });
