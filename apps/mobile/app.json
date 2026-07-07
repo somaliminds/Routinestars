@@ -72,8 +72,7 @@
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photo library so you can choose photos for activity steps.",
           "microphonePermission": false
         }
-      ],
-      "@sentry/react-native"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
