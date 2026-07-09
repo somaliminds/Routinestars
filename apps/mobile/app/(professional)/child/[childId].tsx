@@ -42,6 +42,18 @@ import {
   type ProfessionalRole,
 } from '@/lib/professional-access';
 
+/** First letters of the first two names — a neutral, professional avatar. */
+function initials(name: string): string {
+  const letters = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+  return letters || '?';
+}
+
 interface ScopedData {
   consent: ConsentRow | null;
   categories: DataCategory[];
@@ -268,7 +280,7 @@ export default function ProfessionalChildDetail() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator color="#7C3AED" style={{ marginTop: 40 }} size="large" />
+        <ActivityIndicator color="#0F766E" style={{ marginTop: 40 }} size="large" />
       ) : !data?.consent ? (
         <View style={styles.denied}>
           <Text style={{ fontSize: 40 }}>🔒</Text>
@@ -284,7 +296,9 @@ export default function ProfessionalChildDetail() {
         <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 40 }}>
           {/* Identity */}
           <View style={styles.identity}>
-            <Text style={styles.identityEmoji}>{data.child?.emoji ?? '🌟'}</Text>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials(data.child?.name ?? '')}</Text>
+            </View>
             <View>
               <Text style={styles.identityName}>{data.child?.name ?? 'Child'}</Text>
               <Text style={styles.identityMeta}>
@@ -445,7 +459,7 @@ export default function ProfessionalChildDetail() {
                   value={content}
                   onChangeText={setContent}
                   placeholder="Write your advice, target or note…"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#94A2B4"
                   multiline
                   textAlignVertical="top"
                 />
@@ -493,20 +507,20 @@ function Empty({ children }: { children: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5F0FF' },
+  screen: { flex: 1, backgroundColor: '#F6F8FB' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8 },
-  back: { fontFamily: 'Inter_600SemiBold', fontSize: 14, color: '#7C3AED' },
+  back: { fontFamily: 'Inter_600SemiBold', fontSize: 14, color: '#0F766E' },
   denied: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   deniedText: {
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
-    color: '#6B7280',
+    color: '#5A6B80',
     textAlign: 'center',
     lineHeight: 19,
     marginTop: 12,
   },
   deniedBtn: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#0F766E',
     borderRadius: 12,
     paddingHorizontal: 22,
     paddingVertical: 10,
@@ -521,72 +535,92 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E3E9F0',
   },
-  identityEmoji: { fontSize: 40 },
-  identityName: { fontFamily: 'Nunito_800ExtraBold', fontSize: 20, color: '#111827' },
-  identityMeta: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#6B7280', marginTop: 3 },
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#0F766E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 19,
+    color: '#FFFFFF',
+    letterSpacing: 0.4,
+  },
+  identityName: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 20,
+    color: '#101B2D',
+    letterSpacing: -0.2,
+  },
+  identityMeta: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#5A6B80', marginTop: 3 },
   scopeNote: {
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#94A2B4',
     marginTop: 12,
     marginBottom: 16,
     lineHeight: 15,
   },
   sectionTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 15,
-    color: '#5B21B6',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11.5,
+    color: '#0F766E',
+    textTransform: 'uppercase',
+    letterSpacing: 0.9,
     marginBottom: 10,
   },
   rowCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E3E9F0',
     padding: 12,
     marginBottom: 8,
   },
   rowTag: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 10.5,
-    color: '#5B21B6',
+    color: '#0F766E',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 4,
   },
-  rowText: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#111827', lineHeight: 18 },
+  rowText: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#101B2D', lineHeight: 18 },
   statCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E3E9F0',
     padding: 16,
     alignItems: 'center',
   },
-  statNumber: { fontFamily: 'Nunito_800ExtraBold', fontSize: 34, color: '#7C3AED' },
-  statLabel: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#6B7280', marginTop: 2 },
+  statNumber: { fontFamily: 'Inter_600SemiBold', fontSize: 34, color: '#0F766E' },
+  statLabel: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#5A6B80', marginTop: 2 },
   zoneRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: '#EEF2F7',
     padding: 10,
     marginBottom: 6,
   },
-  zoneName: { fontFamily: 'Inter_600SemiBold', fontSize: 12.5, color: '#374151' },
-  zoneTime: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#9CA3AF' },
-  empty: { fontFamily: 'Inter_400Regular', fontSize: 12.5, color: '#9CA3AF', lineHeight: 17 },
+  zoneName: { fontFamily: 'Inter_600SemiBold', fontSize: 12.5, color: '#5A6B80' },
+  zoneTime: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#94A2B4' },
+  empty: { fontFamily: 'Inter_400Regular', fontSize: 12.5, color: '#94A2B4', lineHeight: 17 },
 
   // Contributions
   contribCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E3E9F0',
     padding: 12,
     marginBottom: 8,
   },
@@ -599,57 +633,57 @@ const styles = StyleSheet.create({
   contribKind: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 10.5,
-    color: '#5B21B6',
+    color: '#0F766E',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  contribDelete: { fontFamily: 'Inter_600SemiBold', fontSize: 11.5, color: '#EF4444' },
-  contribText: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#111827', lineHeight: 18 },
-  contribTime: { fontFamily: 'Inter_400Regular', fontSize: 10.5, color: '#9CA3AF', marginTop: 6 },
+  contribDelete: { fontFamily: 'Inter_600SemiBold', fontSize: 11.5, color: '#B91C1C' },
+  contribText: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#101B2D', lineHeight: 18 },
+  contribTime: { fontFamily: 'Inter_400Regular', fontSize: 10.5, color: '#94A2B4', marginTop: 6 },
   formCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E3E9F0',
     padding: 12,
   },
   kindRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   kindChip: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#DDD6FE',
+    borderColor: '#E3E9F0',
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: '#FFFFFF',
     maxWidth: 160,
   },
-  kindChipOn: { backgroundColor: '#7C3AED', borderColor: '#7C3AED' },
-  kindText: { fontFamily: 'Inter_600SemiBold', fontSize: 12, color: '#6D28D9' },
+  kindChipOn: { backgroundColor: '#0F766E', borderColor: '#0F766E' },
+  kindText: { fontFamily: 'Inter_600SemiBold', fontSize: 12, color: '#0F766E' },
   kindTextOn: { color: '#FFFFFF' },
   tagLabel: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#94A2B4',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   contentInput: {
     borderWidth: 1,
-    borderColor: '#DDD6FE',
+    borderColor: '#E3E9F0',
     borderRadius: 10,
     padding: 12,
     minHeight: 90,
     fontFamily: 'Inter_400Regular',
     fontSize: 13.5,
-    color: '#111827',
-    backgroundColor: '#FAF7FF',
+    color: '#101B2D',
+    backgroundColor: '#F6F8FB',
   },
   formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 12 },
   cancelBtn: { paddingHorizontal: 16, paddingVertical: 10 },
-  cancelText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#6B7280' },
+  cancelText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#5A6B80' },
   saveBtn: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#0F766E',
     borderRadius: 10,
     paddingHorizontal: 22,
     paddingVertical: 10,
@@ -657,11 +691,11 @@ const styles = StyleSheet.create({
   saveText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#FFFFFF' },
   addBtn: {
     borderWidth: 1.5,
-    borderColor: '#7C3AED',
+    borderColor: '#0F766E',
     borderStyle: 'dashed',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  addBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 13.5, color: '#7C3AED' },
+  addBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 13.5, color: '#0F766E' },
 });

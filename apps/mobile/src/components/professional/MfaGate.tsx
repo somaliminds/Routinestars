@@ -87,7 +87,7 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
   if (mode === 'loading') {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator color="#7C3AED" size="large" />
+        <ActivityIndicator color="#0F766E" size="large" />
       </SafeAreaView>
     );
   }
@@ -141,7 +141,7 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
           value={code}
           onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
           placeholder="000000"
-          placeholderTextColor="#C4B5FD"
+          placeholderTextColor="#94A2B4"
           keyboardType="number-pad"
           maxLength={6}
           textAlign="center"
@@ -166,34 +166,34 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5F0FF' },
+  screen: { flex: 1, backgroundColor: '#F6F8FB' },
   center: {
     flex: 1,
-    backgroundColor: '#F5F0FF',
+    backgroundColor: '#F6F8FB',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
   emoji: { fontSize: 48, marginTop: 20 },
   title: {
-    fontFamily: 'Nunito_800ExtraBold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 22,
-    color: '#5B21B6',
+    color: '#0F766E',
     marginTop: 12,
     marginBottom: 8,
     textAlign: 'center',
   },
   errTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 20,
-    color: '#111827',
+    color: '#101B2D',
     marginTop: 10,
     marginBottom: 8,
   },
   body: {
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
-    color: '#6B7280',
+    color: '#5A6B80',
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 16,
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   secretLabel: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#94A2B4',
     marginTop: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
@@ -219,29 +219,29 @@ const styles = StyleSheet.create({
   secret: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
-    color: '#5B21B6',
+    color: '#0F766E',
     letterSpacing: 1.5,
     marginTop: 4,
   },
   codeInput: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#7C3AED',
+    borderColor: '#0F766E',
     borderRadius: 14,
-    fontFamily: 'Nunito_800ExtraBold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 28,
     letterSpacing: 8,
-    color: '#111827',
+    color: '#101B2D',
     paddingVertical: 12,
     width: 200,
     marginBottom: 18,
   },
   primaryBtn: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#0F766E',
     borderRadius: 14,
     paddingHorizontal: 40,
     paddingVertical: 13,
   },
   primaryBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#FFFFFF' },
-  link: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#7C3AED' },
+  link: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#0F766E' },
 });

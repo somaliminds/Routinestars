@@ -5,6 +5,9 @@
  * non-expired, non-withdrawn consent to access. Data visibility is
  * enforced server-side by RLS (has_active_consent); this screen only shows
  * what the parent has granted.
+ *
+ * Clinical treatment (2026-07): slate canvas, trust-teal accent, Inter
+ * throughout, monogram avatars — a surface a SENCo/clinician can trust.
  */
 import { useCallback } from 'react';
 import {
@@ -31,10 +34,19 @@ import {
 interface ChildCard {
   child_id: string;
   child_name: string;
-  avatar_emoji: string;
   role: ProfessionalRole;
   categories: DataCategory[];
   expiry: string;
+}
+
+/** First letters of the first two names — a neutral, professional avatar. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const letters = parts
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+  return letters || '?';
 }
 
 async function loadAccessibleChildren(): Promise<ChildCard[]> {
@@ -48,22 +60,17 @@ async function loadAccessibleChildren(): Promise<ChildCard[]> {
   // Names come from child_profiles — RLS PROFILE_BASICS grants read.
   const { data: profiles } = await supabase
     .from('child_profiles')
-    .select('profile_id, child_name, avatar_emoji')
+    .select('profile_id, child_name')
     .in('profile_id', childIds);
   const nameById = new Map(
-    (profiles ?? []).map((p) => [
-      p.profile_id as string,
-      { name: p.child_name as string, emoji: (p.avatar_emoji as string) ?? '🌟' },
-    ]),
+    (profiles ?? []).map((p) => [p.profile_id as string, p.child_name as string]),
   );
 
   for (const c of consents) {
     if (byChild.has(c.child_id)) continue;
-    const prof = nameById.get(c.child_id);
     byChild.set(c.child_id, {
       child_id: c.child_id,
-      child_name: prof?.name ?? 'A child',
-      avatar_emoji: prof?.emoji ?? '🌟',
+      child_name: nameById.get(c.child_id) ?? 'A child',
       role: c.professional_role as ProfessionalRole,
       categories: c.data_categories as DataCategory[],
       expiry: c.expiry_date,
@@ -106,10 +113,9 @@ export default function ProfessionalChildrenScreen() {
         </Text>
 
         {isLoading ? (
-          <ActivityIndicator color="#7C3AED" style={{ marginTop: 30 }} />
+          <ActivityIndicator color="#0F766E" style={{ marginTop: 30 }} />
         ) : children.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>🤝</Text>
             <Text style={styles.emptyTitle}>No access yet</Text>
             <Text style={styles.emptyText}>
               When a parent grants you access to their child in RoutineStars — using the email{' '}
@@ -125,7 +131,9 @@ export default function ProfessionalChildrenScreen() {
               onPress={() => router.push(`/(professional)/child/${c.child_id}` as never)}
               accessibilityRole="button"
             >
-              <Text style={styles.cardEmoji}>{c.avatar_emoji}</Text>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials(c.child_name)}</Text>
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardName}>{c.child_name}</Text>
                 <Text style={styles.cardRole}>Your role: {ROLE_LABEL[c.role] ?? c.role}</Text>
@@ -144,7 +152,7 @@ export default function ProfessionalChildrenScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5F0FF' },
+  screen: { flex: 1, backgroundColor: '#F6F8FB' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -152,29 +160,42 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 14,
   },
-  headerTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: '#5B21B6' },
-  headerSub: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#6B7280', marginTop: 2 },
-  signOut: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#7C3AED' },
+  headerTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 20,
+    color: '#101B2D',
+    letterSpacing: -0.2,
+  },
+  headerSub: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#5A6B80', marginTop: 2 },
+  signOut: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#0F766E' },
   intro: {
     fontFamily: 'Inter_400Regular',
     fontSize: 12.5,
-    color: '#6B7280',
+    color: '#5A6B80',
     lineHeight: 18,
     marginBottom: 18,
   },
-  empty: { alignItems: 'center', marginTop: 40, paddingHorizontal: 20 },
-  emptyEmoji: { fontSize: 48 },
+  empty: {
+    alignItems: 'center',
+    marginTop: 40,
+    marginHorizontal: 4,
+    paddingVertical: 28,
+    paddingHorizontal: 22,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E3E9F0',
+  },
   emptyTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 18,
-    color: '#111827',
-    marginTop: 12,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: '#101B2D',
     marginBottom: 6,
   },
   emptyText: {
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
-    color: '#6B7280',
+    color: '#5A6B80',
     textAlign: 'center',
     lineHeight: 19,
   },
@@ -185,13 +206,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E3E9F0',
     padding: 14,
     marginBottom: 10,
   },
-  cardEmoji: { fontSize: 34 },
-  cardName: { fontFamily: 'Nunito_800ExtraBold', fontSize: 16, color: '#111827' },
-  cardRole: { fontFamily: 'Inter_500Medium', fontSize: 12, color: '#5B21B6', marginTop: 2 },
-  cardMeta: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#9CA3AF', marginTop: 3 },
-  cardArrow: { fontFamily: 'Nunito_700Bold', fontSize: 22, color: '#7C3AED' },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#0F766E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  cardName: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: '#101B2D',
+    letterSpacing: -0.1,
+  },
+  cardRole: { fontFamily: 'Inter_500Medium', fontSize: 12, color: '#0F766E', marginTop: 2 },
+  cardMeta: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#94A2B4', marginTop: 3 },
+  cardArrow: { fontFamily: 'Inter_600SemiBold', fontSize: 22, color: '#94A2B4' },
 });
