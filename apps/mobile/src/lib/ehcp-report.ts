@@ -97,23 +97,33 @@ export async function buildEvidencePack(
     allSetIds.add(s.set_id as string);
   }
 
-  // Completions for this child against any tagged set in the date range
+  // Completions for this child against any tagged set in the date range.
+  // NOTE: completions has no set_id — it references scheduled_sets, which
+  // carry the set_id. We resolve set_id per completion via the scheduled_sets
+  // map built below (setIdByScheduledSetId).
   const setIdsArr = Array.from(allSetIds);
   const safeSetIds = setIdsArr.length > 0 ? setIdsArr : ['__none__'];
   const { data: completions } = await supabase
     .from('completions')
-    .select('set_id, completed_at, parent_approved')
+    .select('scheduled_set_id, completed_at, parent_approved')
     .eq('child_id', childId)
-    .in('set_id', safeSetIds)
     .gte('completed_at', `${dateFrom}T00:00:00`)
     .lte('completed_at', `${dateTo}T23:59:59`)
     .order('completed_at', { ascending: false });
 
-  // Scheduled instances (scheduled_sets) for this child against any tagged set in range
+  // Scheduled instances (scheduled_sets) for this child against any tagged set
+  // in range. Also gives us scheduled_set_id → set_id for the completions map.
   const { data: scheduled } = await supabase
     .from('scheduled_sets')
-    .select('set_id, status, day_schedules ( child_id, schedule_date )')
+    .select('scheduled_set_id, set_id, status, day_schedules ( child_id, schedule_date )')
     .in('set_id', safeSetIds);
+
+  // scheduled_set_id → set_id (only for tagged sets — untagged completions are
+  // absent from this map and therefore excluded, matching the original intent).
+  const setIdByScheduledSetId: Record<string, string> = {};
+  for (const ss of scheduled ?? []) {
+    setIdByScheduledSetId[ss.scheduled_set_id as string] = ss.set_id as string;
+  }
 
   const completedBySet: Record<string, number> = {};
   const recentBySet: Record<string, { date: string; set_name: string }[]> = {};
@@ -126,12 +136,14 @@ export async function buildEvidencePack(
   for (const c of completions ?? []) {
     const approved = c.parent_approved !== false; // null or true = counted
     if (!approved) continue;
-    completedBySet[c.set_id as string] = (completedBySet[c.set_id as string] ?? 0) + 1;
-    const arr = (recentBySet[c.set_id as string] ??= []);
-    if (arr.length < 5) {
+    const setId = setIdByScheduledSetId[c.scheduled_set_id as string];
+    if (!setId) continue; // completion for an untagged set — not relevant here
+    completedBySet[setId] = (completedBySet[setId] ?? 0) + 1;
+    const arr = (recentBySet[setId] ??= []);
+    if (arr.length < 5 && c.completed_at) {
       arr.push({
         date: (c.completed_at as string).slice(0, 10),
-        set_name: setNameById[c.set_id as string] ?? 'Activity',
+        set_name: setNameById[setId] ?? 'Activity',
       });
     }
   }

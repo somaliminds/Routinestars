@@ -723,6 +723,41 @@ export type Database = {
         };
         Relationships: [];
       };
+      ai_generation_log: {
+        Row: {
+          log_id: string;
+          parent_user_id: string;
+          feature: string;
+          input_prompt: string | null;
+          input_meta: Json | null;
+          model_version: string | null;
+          tool_called: string | null;
+          raw_response: Json | null;
+          passed_validation: boolean | null;
+          rejection_reason: string | null;
+          saved_as_set_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          log_id?: string;
+          parent_user_id: string;
+          feature: string;
+          input_prompt?: string | null;
+          input_meta?: Json | null;
+          model_version?: string | null;
+          tool_called?: string | null;
+          raw_response?: Json | null;
+          passed_validation?: boolean | null;
+          rejection_reason?: string | null;
+          saved_as_set_id?: string | null;
+        };
+        Update: {
+          input_prompt?: string | null;
+          raw_response?: Json | null;
+          saved_as_set_id?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

@@ -57,19 +57,41 @@ export async function buildOnePageProfile(childId: string): Promise<OnePageProfi
 
   // Factual prompt only: the sets this child actually completes most often.
   // Approved (or not-yet-decided) completions in the last 90 days.
+  // completions references scheduled_sets (not activity sets directly), so we
+  // resolve set names in two hops: scheduled_set_id → set_id → set_name.
   const since = format(new Date(Date.now() - 90 * 86400000), 'yyyy-MM-dd');
   const { data: completions } = await supabase
     .from('completions')
-    .select('set_id, parent_approved, activity_sets ( set_name )')
+    .select('scheduled_set_id, parent_approved')
     .eq('child_id', childId)
     .gte('completed_at', `${since}T00:00:00`);
 
+  const approved = (completions ?? []).filter((c) => c.parent_approved !== false);
+  const scheduledSetIds = [...new Set(approved.map((c) => c.scheduled_set_id as string))];
+
+  // scheduled_set_id → set_id, then set_id → set_name.
+  const setNameByScheduledSetId: Record<string, string> = {};
+  if (scheduledSetIds.length > 0) {
+    const { data: ss } = await supabase
+      .from('scheduled_sets')
+      .select('scheduled_set_id, set_id')
+      .in('scheduled_set_id', scheduledSetIds);
+    const setIds = [...new Set((ss ?? []).map((s) => s.set_id as string))];
+    const { data: sets } = await supabase
+      .from('activity_sets')
+      .select('set_id, set_name')
+      .in('set_id', setIds.length > 0 ? setIds : ['__none__']);
+    const nameBySetId: Record<string, string> = {};
+    for (const s of sets ?? []) nameBySetId[s.set_id as string] = s.set_name as string;
+    for (const row of ss ?? []) {
+      const name = nameBySetId[row.set_id as string];
+      if (name) setNameByScheduledSetId[row.scheduled_set_id as string] = name;
+    }
+  }
+
   const countByName: Record<string, number> = {};
-  for (const c of completions ?? []) {
-    if (c.parent_approved === false) continue;
-    const setsField = (c as { activity_sets: unknown }).activity_sets;
-    const s = Array.isArray(setsField) ? setsField[0] : setsField;
-    const name = (s as { set_name?: string } | null)?.set_name;
+  for (const c of approved) {
+    const name = setNameByScheduledSetId[c.scheduled_set_id as string];
     if (!name) continue;
     countByName[name] = (countByName[name] ?? 0) + 1;
   }

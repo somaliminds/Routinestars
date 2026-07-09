@@ -91,21 +91,28 @@ export async function computeCycleProgress(
   const setIds = (tags ?? []).map((t) => t.set_id as string);
   if (setIds.length === 0) return { ...empty, has_window: true };
 
-  // Approved (or not-yet-decided) completions in the window
-  const { data: completions } = await supabase
-    .from('completions')
-    .select('set_id, parent_approved')
-    .eq('child_id', childId)
-    .in('set_id', setIds)
-    .gte('completed_at', `${windowFrom}T00:00:00`)
-    .lte('completed_at', `${windowTo}T23:59:59`);
-  const completed = (completions ?? []).filter((c) => c.parent_approved !== false).length;
-
-  // Scheduled instances in the window
+  // Scheduled instances for this outcome's sets. Also maps
+  // scheduled_set_id → set_id so we can attribute completions (completions
+  // reference scheduled_sets, not activity sets directly).
   const { data: scheduled } = await supabase
     .from('scheduled_sets')
-    .select('set_id, day_schedules ( child_id, schedule_date )')
+    .select('scheduled_set_id, set_id, day_schedules ( child_id, schedule_date )')
     .in('set_id', setIds);
+  const outcomeScheduledSetIds = new Set(
+    (scheduled ?? []).map((ss) => ss.scheduled_set_id as string),
+  );
+
+  // Approved (or not-yet-decided) completions in the window, limited to this
+  // outcome's sets via the scheduled_set_id set above.
+  const { data: completions } = await supabase
+    .from('completions')
+    .select('scheduled_set_id, parent_approved')
+    .eq('child_id', childId)
+    .gte('completed_at', `${windowFrom}T00:00:00`)
+    .lte('completed_at', `${windowTo}T23:59:59`);
+  const completed = (completions ?? []).filter(
+    (c) => c.parent_approved !== false && outcomeScheduledSetIds.has(c.scheduled_set_id as string),
+  ).length;
   let scheduledCount = 0;
   for (const ss of scheduled ?? []) {
     const ds = (ss as { day_schedules: unknown }).day_schedules;
