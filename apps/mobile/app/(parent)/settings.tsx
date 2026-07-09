@@ -1156,6 +1156,55 @@ export default function SettingsScreen() {
           <Text className="font-inter font-semibold text-accent-danger text-sm">Sign Out</Text>
         </TouchableOpacity>
 
+        {/* ── Delete account (UK GDPR erasure) ── */}
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert(
+              'Delete account',
+              'This permanently deletes your account and all data for every child profile — routines, progress, rewards and reports. This cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete everything',
+                  style: 'destructive',
+                  onPress: () => {
+                    Alert.alert(
+                      'Are you absolutely sure?',
+                      'There is no way to recover this data.',
+                      [
+                        { text: 'Keep my account', style: 'cancel' },
+                        {
+                          text: 'Delete permanently',
+                          style: 'destructive',
+                          onPress: () => {
+                            void (async () => {
+                              const { data, error } =
+                                await supabase.functions.invoke('delete-account');
+                              if (error || !(data as { success?: boolean } | null)?.success) {
+                                Alert.alert(
+                                  'Could not delete account',
+                                  'Something went wrong. Please try again or contact support.',
+                                );
+                                return;
+                              }
+                              await signOut();
+                            })();
+                          },
+                        },
+                      ],
+                    );
+                  },
+                },
+              ],
+            );
+          }}
+          className="mt-3 py-3 items-center"
+          accessibilityLabel="Delete my account and all data"
+          accessibilityRole="button"
+        >
+          <Text className="font-inter text-neutral-500 text-xs underline">Delete my account</Text>
+        </TouchableOpacity>
+
         {/* Sentry test — dev only. Strip from production by checking __DEV__. */}
         {__DEV__ && (
           <TouchableOpacity
