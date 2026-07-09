@@ -104,6 +104,27 @@ Deno.serve(async (req) => {
 
   console.log('[stripe-webhook] received event:', event.type, 'id:', event.id);
 
+  // Idempotency (audit H2) — Stripe retries deliver duplicates. Claim the
+  // event id first; a unique violation means we've already handled it, so ack
+  // with 200 to stop the retries. If claiming fails for any other reason, we
+  // still process (never drop a real event) but skip the rollback.
+  let claimed = false;
+  const { error: claimErr } = await supabase
+    .from('processed_stripe_events')
+    .insert({ event_id: event.id, event_type: event.type });
+  if (claimErr) {
+    if (claimErr.code === '23505') {
+      console.log('[stripe-webhook] duplicate event, skipping:', event.id);
+      return new Response(JSON.stringify({ received: true, duplicate: true }), {
+        status: 200,
+        headers: JSON_HEADERS,
+      });
+    }
+    console.error('[stripe-webhook] idempotency claim error (processing anyway):', claimErr.message);
+  } else {
+    claimed = true;
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -186,6 +207,11 @@ Deno.serve(async (req) => {
     const stack = err instanceof Error ? err.stack : undefined;
     console.error('[stripe-webhook] handler error:', msg);
     if (stack) console.error(stack);
+    // Processing failed — release our idempotency claim so Stripe's retry
+    // reprocesses this event instead of being skipped as a duplicate.
+    if (claimed) {
+      await supabase.from('processed_stripe_events').delete().eq('event_id', event.id);
+    }
     return new Response(JSON.stringify({ error: 'Handler failed', detail: msg }), {
       status: 500,
       headers: JSON_HEADERS,
