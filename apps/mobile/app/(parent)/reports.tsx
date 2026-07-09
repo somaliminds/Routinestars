@@ -78,36 +78,21 @@ const REWARD_EMOJI: Record<string, string> = {
 
 // ── Data Fetch ───────────────────────────────────────────────────────────────
 async function fetchReports(childId: string): Promise<ReportsData> {
-  const today = new Date();
-
-  // 1. 30-day daily rates
+  // 1. 30-day daily rates — one aggregate RPC instead of up to 60 round-trips
+  //    (audit M1). RLS still applies (SECURITY INVOKER function).
   const dailyRates: DailyRate[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const date = format(subDays(today, i), 'yyyy-MM-dd');
-    const { data: ds } = await supabase
-      .from('day_schedules')
-      .select('schedule_id')
-      .eq('child_id', childId)
-      .eq('schedule_date', date)
-      .maybeSingle();
-
-    if (ds) {
-      const { data: sets } = await supabase
-        .from('scheduled_sets')
-        .select('status')
-        .eq('schedule_id', ds.schedule_id);
-      const scheduled = sets?.length ?? 0;
-      const completed =
-        sets?.filter((s) => s.status === 'APPROVED' || s.status === 'LOCKED').length ?? 0;
-      dailyRates.push({
-        date,
-        scheduled,
-        completed,
-        pct: scheduled > 0 ? Math.round((completed / scheduled) * 100) : 0,
-      });
-    } else {
-      dailyRates.push({ date, scheduled: 0, completed: 0, pct: 0 });
-    }
+  const { data: rateRows } = await supabase.rpc('get_completion_rate_30d', {
+    p_child_id: childId,
+  });
+  for (const row of rateRows ?? []) {
+    const scheduled = row.scheduled ?? 0;
+    const completed = row.completed ?? 0;
+    dailyRates.push({
+      date: row.day,
+      scheduled,
+      completed,
+      pct: scheduled > 0 ? Math.round((completed / scheduled) * 100) : 0,
+    });
   }
 
   // 2. Earned badges

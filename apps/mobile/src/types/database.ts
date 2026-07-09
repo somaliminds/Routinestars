@@ -748,6 +748,10 @@ export type Database = {
           needs_pin_setup: boolean;
         };
       };
+      get_completion_rate_30d: {
+        Args: { p_child_id: string };
+        Returns: { day: string; scheduled: number; completed: number }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
