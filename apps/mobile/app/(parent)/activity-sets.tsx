@@ -41,6 +41,7 @@ import {
   requiredTierFor,
 } from '@/stores/subscription.store';
 import { supabase } from '@/lib/supabase';
+import { quotaMessageFor } from '@/lib/quota-errors';
 import type { ActivitySetRow, StepRow } from '@/types/database';
 import { useResponsive } from '@/hooks/useResponsive';
 import { OutcomeLinker } from '@/components/parent/OutcomeLinker';
@@ -616,8 +617,10 @@ function ActivitySetModal({
       }
       onSaved();
       onClose();
-    } catch {
+    } catch (err) {
       setIsSaving(false);
+      const quota = quotaMessageFor(err);
+      if (quota) Alert.alert(quota.title, quota.body);
     }
   }, [
     setName,

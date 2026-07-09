@@ -28,6 +28,7 @@ import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
+import { quotaMessageFor } from '@/lib/quota-errors';
 import { useAuthStore } from '@/stores/auth.store';
 import { useParentStore } from '@/stores/parent.store';
 import { useSubscriptionStore, canAddChild, canShareCareTeam } from '@/stores/subscription.store';
@@ -981,8 +982,13 @@ export default function SettingsScreen() {
       void qc.invalidateQueries({ queryKey: ['settingsChildren', userId] });
     },
     onError: (err) => {
-      Alert.alert('Error', 'Could not save child profile. Please try again.');
-      console.error('saveChild error:', err);
+      const quota = quotaMessageFor(err);
+      if (quota) {
+        Alert.alert(quota.title, quota.body);
+      } else {
+        Alert.alert('Error', 'Could not save child profile. Please try again.');
+        console.error('saveChild error:', err);
+      }
     },
   });
 
