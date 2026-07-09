@@ -5,6 +5,16 @@ import bcrypt from 'https://esm.sh/bcryptjs@2.4.3';
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
 const PIN_REGEX = /^\d{4}$/;
 
+// Reset tokens are stored HASHED at rest (audit M3) — a DB read never reveals
+// a live token. The emailed link carries the raw token; we hash it here to
+// look up the row.
+async function sha256Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
@@ -32,10 +42,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
+    const tokenHash = await sha256Hex(token);
     const { data: profile, error: fetchError } = await supabase
       .from('parent_profiles')
       .select('user_id, pin_reset_expires_at')
-      .eq('pin_reset_token', token)
+      .eq('pin_reset_token', tokenHash)
       .single();
 
     if (fetchError || !profile) {
@@ -60,6 +71,9 @@ serve(async (req) => {
         pin_hash: newHash,
         pin_reset_token: null,
         pin_reset_expires_at: null,
+        // A reset means they'd forgotten — clear any brute-force lock too (C2).
+        pin_attempt_count: 0,
+        pin_locked_until: null,
       })
       .eq('user_id', profile.user_id as string);
 

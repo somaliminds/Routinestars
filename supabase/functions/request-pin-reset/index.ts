@@ -16,6 +16,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.99.0';
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
 const SUCCESS = new Response(JSON.stringify({ success: true }), { headers: CORS });
 
+// SHA-256 hex — reset tokens are stored hashed at rest (audit M3).
+async function sha256Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
@@ -112,9 +120,12 @@ serve(async (req) => {
 
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
 
+    // Store the token HASHED at rest (audit M3) — a DB read never yields a live
+    // token. The raw token only ever travels in the emailed link below.
+    const tokenHash = await sha256Hex(token);
     const { error: updateError } = await supabase
       .from('parent_profiles')
-      .update({ pin_reset_token: token, pin_reset_expires_at: expiresAt })
+      .update({ pin_reset_token: tokenHash, pin_reset_expires_at: expiresAt })
       .eq('user_id', userId);
 
     if (updateError) {
