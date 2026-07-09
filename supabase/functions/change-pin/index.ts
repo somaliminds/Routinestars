@@ -28,6 +28,41 @@ serve(async (req) => {
       );
     }
 
+    // Authorisation (audit C3) — verify the caller IS the account they name.
+    // The gateway validates the JWT (verify_jwt = true) but that only proves
+    // SOME valid project JWT. Without this, any authenticated user could pass
+    // another user's userId and overwrite their PIN (and when the target has
+    // no PIN yet, the currentPin gate below is skipped entirely).
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'unauthorized' }),
+        { status: 401, headers: CORS },
+      );
+    }
+    const supabaseAsUser = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const {
+      data: { user: authUser },
+      error: authErr,
+    } = await supabaseAsUser.auth.getUser();
+    if (authErr || !authUser) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'unauthorized' }),
+        { status: 401, headers: CORS },
+      );
+    }
+    if (authUser.id !== userId) {
+      console.warn('[change-pin] userId mismatch', { auth: authUser.id, body: userId });
+      return new Response(
+        JSON.stringify({ success: false, error: 'forbidden' }),
+        { status: 403, headers: CORS },
+      );
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -66,7 +101,8 @@ serve(async (req) => {
 
     const { error: updateError } = await supabase
       .from('parent_profiles')
-      .update({ pin_hash: newHash })
+      // Clear any brute-force lockout state on a successful change (audit C2).
+      .update({ pin_hash: newHash, pin_attempt_count: 0, pin_locked_until: null })
       .eq('user_id', userId);
 
     if (updateError) {

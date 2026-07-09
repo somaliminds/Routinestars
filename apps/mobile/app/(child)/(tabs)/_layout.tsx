@@ -1,13 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Tabs, useRouter } from 'expo-router';
-import {
-  Text,
-  TouchableOpacity,
-  Modal,
-  View,
-  ActivityIndicator,
-  SafeAreaView,
-} from 'react-native';
+import { Text, TouchableOpacity, Modal, View, ActivityIndicator, SafeAreaView } from 'react-native';
 import { useAuthStore } from '@/stores/auth.store';
 import { supabase } from '@/lib/supabase';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -57,8 +50,23 @@ export default function ChildTabsLayout() {
           const { data, error } = await supabase.functions.invoke('verify-pin', {
             body: { user_id: userId, pin: next },
           });
-          if (error || !(data as { valid: boolean } | null)?.valid) {
-            setPinError('Incorrect PIN. Try again.');
+          const res = data as {
+            valid: boolean;
+            locked?: boolean;
+            retry_after_seconds?: number;
+            attempts_remaining?: number;
+          } | null;
+          if (error || !res?.valid) {
+            if (res?.locked) {
+              const mins = Math.ceil((res.retry_after_seconds ?? 900) / 60);
+              setPinError(
+                `Too many attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`,
+              );
+            } else if (typeof res?.attempts_remaining === 'number') {
+              setPinError(`Incorrect PIN. ${res.attempts_remaining} attempt(s) left.`);
+            } else {
+              setPinError('Incorrect PIN. Try again.');
+            }
             setPinEntry('');
           } else {
             closePinGate();
@@ -96,10 +104,7 @@ export default function ChildTabsLayout() {
           <Text className="font-inter font-bold text-neutral-900 mb-2" style={{ fontSize: 22 }}>
             Parent Access
           </Text>
-          <Text
-            className="font-inter text-neutral-500 text-center mb-8"
-            style={{ fontSize: 14 }}
-          >
+          <Text className="font-inter text-neutral-500 text-center mb-8" style={{ fontSize: 14 }}>
             Enter your 4-digit PIN to switch to the parent app.
           </Text>
 
@@ -223,9 +228,7 @@ export default function ChildTabsLayout() {
           options={{
             title: 'Today',
             tabBarIcon: ({ focused }) => (
-              <Text style={{ fontSize: focused ? 28 : 22, opacity: focused ? 1 : 0.5 }}>
-                📅
-              </Text>
+              <Text style={{ fontSize: focused ? 28 : 22, opacity: focused ? 1 : 0.5 }}>📅</Text>
             ),
           }}
         />
@@ -234,9 +237,7 @@ export default function ChildTabsLayout() {
           options={{
             title: 'My Rewards',
             tabBarIcon: ({ focused }) => (
-              <Text style={{ fontSize: focused ? 28 : 22, opacity: focused ? 1 : 0.5 }}>
-                ⭐
-              </Text>
+              <Text style={{ fontSize: focused ? 28 : 22, opacity: focused ? 1 : 0.5 }}>⭐</Text>
             ),
           }}
         />
