@@ -6,6 +6,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useApprovalQueue } from '@/hooks/useApprovalQueue';
 import { useSubscriptionStore } from '@/stores/subscription.store';
 import { useResponsive } from '@/hooks/useResponsive';
+import { RouteErrorBoundary } from '@/components/ui/RouteErrorBoundary';
 
 /**
  * Parent app layout — Sprint 2.4
@@ -33,103 +34,105 @@ export default function ParentLayout() {
   }, [userId, fetchSubscription]);
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#7C3AED',
-        tabBarInactiveTintColor: '#9CA3AF',
-        tabBarShowLabel: !hideLabels,
-        tabBarLabelStyle: {
-          fontFamily: 'Inter_600SemiBold',
-          fontSize: 10,
-          marginTop: -2,
-        },
-        tabBarItemStyle: {
-          paddingVertical: hideLabels ? 14 : 8,
-        },
-        tabBarStyle: {
-          position: 'absolute',
-          bottom: r.tabBarBottom,
-          left: r.tabBarSideMargin,
-          right: r.tabBarSideMargin,
-          height: r.tabBarHeight,
-          borderRadius: r.tabBarRadius,
-          backgroundColor: 'rgba(255,255,255,0.92)',
-          borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.55)',
-          paddingBottom: 0,
-          paddingTop: 0,
-          paddingHorizontal: 4,
-          shadowColor: '#5B21B6',
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.28,
-          shadowRadius: 28,
-          elevation: 14,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="dashboard"
-        options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+    <RouteErrorBoundary tone="adult">
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#7C3AED',
+          tabBarInactiveTintColor: '#9CA3AF',
+          tabBarShowLabel: !hideLabels,
+          tabBarLabelStyle: {
+            fontFamily: 'Inter_600SemiBold',
+            fontSize: 10,
+            marginTop: -2,
+          },
+          tabBarItemStyle: {
+            paddingVertical: hideLabels ? 14 : 8,
+          },
+          tabBarStyle: {
+            position: 'absolute',
+            bottom: r.tabBarBottom,
+            left: r.tabBarSideMargin,
+            right: r.tabBarSideMargin,
+            height: r.tabBarHeight,
+            borderRadius: r.tabBarRadius,
+            backgroundColor: 'rgba(255,255,255,0.92)',
+            borderTopWidth: 0,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.55)',
+            paddingBottom: 0,
+            paddingTop: 0,
+            paddingHorizontal: 4,
+            shadowColor: '#5B21B6',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.28,
+            shadowRadius: 28,
+            elevation: 14,
+          },
         }}
-      />
-      <Tabs.Screen
-        name="schedule"
-        options={{
-          title: 'Schedule',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="activity-sets"
-        options={{
-          title: 'Activities',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="reports"
-        options={{
-          title: 'Reports',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bar-chart-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="subscription"
-        options={{
-          title: 'Plan',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="diamond-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      {/* Hidden route — approval detail, not shown in tab bar */}
-      <Tabs.Screen name="approve/[completionId]" options={{ href: null }} />
-      {/* Hidden route — EHCP outcomes manager, opened from Settings */}
-      <Tabs.Screen name="ehcp" options={{ href: null }} />
-      {/* Hidden route — AI routine generator, opened from Activity Sets */}
-      <Tabs.Screen name="ai-generate" options={{ href: null }} />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="dashboard"
+          options={{
+            title: 'Dashboard',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="home-outline" size={size} color={color} />
+            ),
+            tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          }}
+        />
+        <Tabs.Screen
+          name="schedule"
+          options={{
+            title: 'Schedule',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="calendar-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="activity-sets"
+          options={{
+            title: 'Activities',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="list-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="reports"
+          options={{
+            title: 'Reports',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="bar-chart-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: 'Settings',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="settings-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="subscription"
+          options={{
+            title: 'Plan',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="diamond-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        {/* Hidden route — approval detail, not shown in tab bar */}
+        <Tabs.Screen name="approve/[completionId]" options={{ href: null }} />
+        {/* Hidden route — EHCP outcomes manager, opened from Settings */}
+        <Tabs.Screen name="ehcp" options={{ href: null }} />
+        {/* Hidden route — AI routine generator, opened from Activity Sets */}
+        <Tabs.Screen name="ai-generate" options={{ href: null }} />
+      </Tabs>
+    </RouteErrorBoundary>
   );
 }

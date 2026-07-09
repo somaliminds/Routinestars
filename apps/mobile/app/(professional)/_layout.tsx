@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { MfaGate } from '@/components/professional/MfaGate';
+import { RouteErrorBoundary } from '@/components/ui/RouteErrorBoundary';
 
 /**
  * Professional portal route group. A separate stack for support
@@ -12,8 +13,10 @@ import { MfaGate } from '@/components/professional/MfaGate';
  */
 export default function ProfessionalLayout() {
   return (
-    <MfaGate>
-      <Stack screenOptions={{ headerShown: false }} />
-    </MfaGate>
+    <RouteErrorBoundary tone="adult">
+      <MfaGate>
+        <Stack screenOptions={{ headerShown: false }} />
+      </MfaGate>
+    </RouteErrorBoundary>
   );
 }
