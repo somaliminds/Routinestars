@@ -60,7 +60,9 @@ function PlanCard({
 
       <View style={styles.planHeader}>
         <Text style={[styles.planName, isSelected && styles.planNameSelected]}>{plan.name}</Text>
-        <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>{priceDisplay}</Text>
+        <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>
+          {priceDisplay}
+        </Text>
       </View>
 
       {plan.features.map((f) => (

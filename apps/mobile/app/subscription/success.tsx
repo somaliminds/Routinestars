@@ -31,12 +31,36 @@ export default function SubscriptionSuccessScreen() {
   }, [userId, fetchSubscription, queryClient, router]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F5F0FF', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: '#F5F0FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+      }}
+    >
       <Text style={{ fontSize: 48, marginBottom: 8 }}>🎉</Text>
-      <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 22, color: '#111827', textAlign: 'center', marginBottom: 8 }}>
+      <Text
+        style={{
+          fontFamily: 'Nunito_700Bold',
+          fontSize: 22,
+          color: '#111827',
+          textAlign: 'center',
+          marginBottom: 8,
+        }}
+      >
         Subscription activated!
       </Text>
-      <Text style={{ fontFamily: 'Nunito_400Regular', fontSize: 16, color: '#6B7280', textAlign: 'center', marginBottom: 24 }}>
+      <Text
+        style={{
+          fontFamily: 'Nunito_400Regular',
+          fontSize: 16,
+          color: '#6B7280',
+          textAlign: 'center',
+          marginBottom: 24,
+        }}
+      >
         Updating your account…
       </Text>
       <ActivityIndicator size="large" color="#7C3AED" />

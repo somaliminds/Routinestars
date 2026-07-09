@@ -18,10 +18,11 @@ import { View, NativeModules, StyleSheet, type ViewStyle, type StyleProp } from 
 // Dynamic require so missing native module doesn't crash JS bundling.
 type BlurViewType = typeof import('expo-blur').BlurView;
 let BlurView: BlurViewType | null = null;
-const blurAvailable = !!NativeModules.ExpoBlurView || !!(NativeModules as Record<string, unknown>).ExpoBlur;
+const blurAvailable =
+  !!NativeModules.ExpoBlurView || !!(NativeModules as Record<string, unknown>).ExpoBlur;
 if (blurAvailable) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
     BlurView = require('expo-blur').BlurView as BlurViewType;
   } catch {
     BlurView = null;
@@ -57,8 +58,7 @@ export function GlassCard({
         ? 'rgba(255,255,255,0.70)'
         : 'rgba(255,255,255,0.85)';
 
-  const borderColor =
-    variant === 'dark' ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.55)';
+  const borderColor = variant === 'dark' ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.55)';
 
   const containerStyle: StyleProp<ViewStyle> = [
     {
@@ -85,9 +85,5 @@ export function GlassCard({
   }
 
   // Fallback — translucent white View
-  return (
-    <View style={[containerStyle, { backgroundColor: fallbackBg, padding }]}>
-      {children}
-    </View>
-  );
+  return <View style={[containerStyle, { backgroundColor: fallbackBg, padding }]}>{children}</View>;
 }

@@ -50,32 +50,32 @@ export default function WelcomeScreen() {
       {/* CTA buttons — own SafeArea so bottom inset is respected after ScrollView */}
       <SafeAreaView edges={['bottom']} style={styles.footerSafe}>
         <View style={styles.footer}>
-        <TouchableOpacity
-          onPress={() => router.push('/(auth)/signup')}
-          style={styles.primaryBtn}
-          accessibilityLabel="Get started — create a new account"
-          accessibilityRole="button"
-        >
-          <Text style={styles.primaryBtnText}>Get Started — It's Free</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/signup')}
+            style={styles.primaryBtn}
+            accessibilityLabel="Get started — create a new account"
+            accessibilityRole="button"
+          >
+            <Text style={styles.primaryBtnText}>Get Started — It's Free</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => router.push('/(auth)/login')}
-          style={styles.secondaryBtn}
-          accessibilityLabel="Sign in to your existing account"
-          accessibilityRole="button"
-        >
-          <Text style={styles.secondaryBtnText}>I already have an account</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/login')}
+            style={styles.secondaryBtn}
+            accessibilityLabel="Sign in to your existing account"
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryBtnText}>I already have an account</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => router.push('/privacy-policy')}
-          accessibilityRole="link"
-          accessibilityLabel="View Privacy Policy"
-          style={styles.privacyLink}
-        >
-          <Text style={styles.privacyLinkText}>Privacy Policy</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/privacy-policy')}
+            accessibilityRole="link"
+            accessibilityLabel="View Privacy Policy"
+            style={styles.privacyLink}
+          >
+            <Text style={styles.privacyLinkText}>Privacy Policy</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </SafeAreaView>

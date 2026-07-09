@@ -3,6 +3,7 @@
  *
  * Uses jest-expo's mocking. expo-sqlite is mocked via jest setup.
  */
+/* eslint-disable import/first -- jest.mock must be hoisted above the import under test */
 
 // Mock expo-sqlite before importing offline-db
 jest.mock('expo-sqlite', () => {
@@ -29,8 +30,9 @@ jest.mock('expo-sqlite', () => {
       // Simulate INSERT/UPDATE for cached_schedules
       if (sql.includes('INSERT INTO cached_schedules')) {
         if (!rows['cached_schedules']) rows['cached_schedules'] = [];
-        const existing = (rows['cached_schedules'] as { child_id: string; schedule_date: string }[])
-          .findIndex((r) => r.child_id === params[0] && r.schedule_date === params[1]);
+        const existing = (
+          rows['cached_schedules'] as { child_id: string; schedule_date: string }[]
+        ).findIndex((r) => r.child_id === params[0] && r.schedule_date === params[1]);
         if (existing >= 0) {
           (rows['cached_schedules'][existing] as Record<string, unknown>)['data'] = params[2];
         } else {

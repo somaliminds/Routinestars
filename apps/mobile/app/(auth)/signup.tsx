@@ -104,7 +104,11 @@ export default function SignupScreen() {
 
   return (
     <AuthLayout brand title="Create your account" subtitle="Set up RoutineStars for your family">
-      <GoogleButton onPress={handleGoogle} isLoading={isGoogleLoading} label="Sign up with Google" />
+      <GoogleButton
+        onPress={handleGoogle}
+        isLoading={isGoogleLoading}
+        label="Sign up with Google"
+      />
       <OrDivider />
       <Controller
         control={control}
@@ -173,7 +177,11 @@ export default function SignupScreen() {
         )}
       />
 
-      <PrimaryButton label="Create Account" onPress={handleSubmit(onSubmit)} isLoading={isLoading} />
+      <PrimaryButton
+        label="Create Account"
+        onPress={handleSubmit(onSubmit)}
+        isLoading={isLoading}
+      />
 
       <TextLink
         label="Already have an account? Sign in"

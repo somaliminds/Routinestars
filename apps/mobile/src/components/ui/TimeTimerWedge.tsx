@@ -68,11 +68,7 @@ function sectorPath(cx: number, cy: number, r: number, sweepDegrees: number): st
   return `M ${cx} ${cy} L ${startX} ${startY} A ${r} ${r} 0 ${largeArc} 1 ${endX} ${endY} Z`;
 }
 
-export function TimeTimerWedge({
-  progress,
-  isOvertime = false,
-  size = 96,
-}: TimeTimerWedgeProps) {
+export function TimeTimerWedge({ progress, isOvertime = false, size = 96 }: TimeTimerWedgeProps) {
   const clamped = Math.max(0, Math.min(1, progress));
   const remainingDegrees = (1 - clamped) * 360;
   const remainingColor = isOvertime ? COLOR_OVERTIME_REMAINING : COLOR_REMAINING;
@@ -88,7 +84,7 @@ export function TimeTimerWedge({
       accessibilityLabel={
         isOvertime
           ? 'Time is up — over by a little'
-          : `${Math.round(remainingDegrees / 360 * 100)} percent of time remaining`
+          : `${Math.round((remainingDegrees / 360) * 100)} percent of time remaining`
       }
       accessibilityRole="image"
     >

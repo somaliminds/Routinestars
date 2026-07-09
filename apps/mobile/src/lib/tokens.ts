@@ -21,29 +21,29 @@ import type { TextStyle, ViewStyle } from 'react-native';
 // ── Colour palette ────────────────────────────────────────────────────────────
 const COLOR = {
   // Surface
-  bg:        '#F5F0FF',
-  bgSoft:    '#FAF7FF',
-  card:      'rgba(255,255,255,0.85)',
-  cardSoft:  'rgba(255,255,255,0.70)',
-  cardBorder:'rgba(255,255,255,0.55)',
+  bg: '#F5F0FF',
+  bgSoft: '#FAF7FF',
+  card: 'rgba(255,255,255,0.85)',
+  cardSoft: 'rgba(255,255,255,0.70)',
+  cardBorder: 'rgba(255,255,255,0.55)',
 
   // Brand
-  brand:     '#7C3AED',
+  brand: '#7C3AED',
   brandDark: '#5B21B6',
   brandSoft: 'rgba(124,58,237,0.10)',
   brandRing: 'rgba(124,58,237,0.30)',
 
   // Ink (text)
-  ink:       '#111827',
-  inkSoft:   '#374151',
-  inkMute:   '#6B7280',
-  inkFaint:  '#9CA3AF',
+  ink: '#111827',
+  inkSoft: '#374151',
+  inkMute: '#6B7280',
+  inkFaint: '#9CA3AF',
 
   // Status
-  success:   '#10B981',
-  warning:   '#D97706', // amber, NOT red — autism-friendly
-  danger:    '#EF4444',
-  star:      '#F59E0B',
+  success: '#10B981',
+  warning: '#D97706', // amber, NOT red — autism-friendly
+  danger: '#EF4444',
+  star: '#F59E0B',
 } as const;
 
 // ── 4dp spacing scale ─────────────────────────────────────────────────────────
@@ -62,18 +62,18 @@ const SPACE = {
 
 // ── Border radii ──────────────────────────────────────────────────────────────
 const RADIUS = {
-  rSm:  12,
-  rMd:  18,
-  rLg:  24,
-  rXl:  28,
+  rSm: 12,
+  rMd: 18,
+  rLg: 24,
+  rXl: 28,
   pill: 999,
 } as const;
 
 // ── Touch target minimums (Apple HIG 44pt, Material 48dp, WCAG 2.5.5) ─────────
 const TAP = {
-  min: 44,     // hard floor on iOS
-  comfy: 48,   // Material recommendation
-  big: 60,     // primary buttons
+  min: 44, // hard floor on iOS
+  comfy: 48, // Material recommendation
+  big: 60, // primary buttons
 } as const;
 
 // ── Typography presets (only use these — never invent inline sizes) ───────────
@@ -146,7 +146,7 @@ const CARD: ViewStyle = {
 const CARD_SOFT: ViewStyle = {
   ...CARD,
   backgroundColor: COLOR.cardSoft,
-  shadowOpacity: 0.10,
+  shadowOpacity: 0.1,
 };
 
 // ── Primary CTA preset ────────────────────────────────────────────────────────

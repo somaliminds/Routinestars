@@ -10,13 +10,7 @@
  * Spec: Section 11.1 — Parental Approval Flow
  */
 import { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -186,8 +180,7 @@ export default function ApprovalDetailScreen() {
           body: { child_id: detail.childId, completion_id: detail.completionId },
         })
         .then(({ data }) => {
-          const bonusStars =
-            (data as { bonus_stars?: number } | null)?.bonus_stars ?? 0;
+          const bonusStars = (data as { bonus_stars?: number } | null)?.bonus_stars ?? 0;
           if (bonusStars > 0) {
             void supabase.rpc('increment_child_stars', {
               p_child_id: detail.childId,
@@ -203,6 +196,7 @@ export default function ApprovalDetailScreen() {
     } catch {
       setIsSubmitting(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- parentGoldStar read once at approve time
   }, [detail, isSubmitting, queryClient, session, router]);
 
   const handleRedo = useCallback(async () => {
@@ -230,10 +224,7 @@ export default function ApprovalDetailScreen() {
         .eq('scheduled_set_id', detail.scheduledSetId);
 
       // Delete the completion + step_completions so child starts fresh
-      await supabase
-        .from('step_completions')
-        .delete()
-        .eq('completion_id', detail.completionId);
+      await supabase.from('step_completions').delete().eq('completion_id', detail.completionId);
       await supabase.from('completions').delete().eq('completion_id', detail.completionId);
 
       void queryClient.invalidateQueries({ queryKey: ['approvalQueue', session?.user.id] });
@@ -316,7 +307,9 @@ export default function ApprovalDetailScreen() {
               parentGoldStar ? 'bg-accent-star/20 border border-accent-star' : 'bg-[#F5F0FF]'
             }`}
             onPress={() => setParentGoldStar((v) => !v)}
-            accessibilityLabel={parentGoldStar ? 'Remove gold star bonus' : 'Add gold star bonus (+5 stars)'}
+            accessibilityLabel={
+              parentGoldStar ? 'Remove gold star bonus' : 'Add gold star bonus (+5 stars)'
+            }
             accessibilityRole="checkbox"
           >
             <Text className="text-[22px] mr-2">{parentGoldStar ? '🌟' : '☆'}</Text>

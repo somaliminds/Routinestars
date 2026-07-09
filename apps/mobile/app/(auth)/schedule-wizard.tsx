@@ -65,6 +65,7 @@ export default function ScheduleWizardScreen() {
   useEffect(() => {
     if (!userId) return;
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per user; load is stable
   }, [userId]);
 
   const load = async () => {
@@ -222,10 +223,7 @@ export default function ScheduleWizardScreen() {
                     {set.set_name}
                   </Text>
                   <Text
-                    style={[
-                      styles.setDuration,
-                      isSelected && { color: 'rgba(255,255,255,0.75)' },
-                    ]}
+                    style={[styles.setDuration, isSelected && { color: 'rgba(255,255,255,0.75)' }]}
                   >
                     {set.total_duration_mins} min
                   </Text>
@@ -256,10 +254,7 @@ export default function ScheduleWizardScreen() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => router.replace('/(parent)/dashboard')}
-          style={styles.skip}
-        >
+        <TouchableOpacity onPress={() => router.replace('/(parent)/dashboard')} style={styles.skip}>
           <Text style={styles.skipText}>Skip — I'll set this up later</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -320,7 +315,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.55)',
     shadowColor: '#5B21B6',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
+    shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 3,
   },

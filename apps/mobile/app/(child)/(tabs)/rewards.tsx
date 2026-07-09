@@ -189,8 +189,17 @@ export default function RewardsScreen() {
   if (!selectedChild) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F5F0FF' }}>
-        <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
-          <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 22, color: '#111827', textAlign: 'center' }}>
+        <SafeAreaView
+          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}
+        >
+          <Text
+            style={{
+              fontFamily: 'Nunito_700Bold',
+              fontSize: 22,
+              color: '#111827',
+              textAlign: 'center',
+            }}
+          >
             No profile selected
           </Text>
         </SafeAreaView>
@@ -211,12 +220,29 @@ export default function RewardsScreen() {
   if (error || !data) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F5F0FF' }}>
-        <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+        <SafeAreaView
+          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}
+        >
           <Text style={{ fontSize: 56, marginBottom: 12 }}>😟</Text>
-          <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 24, color: '#111827', textAlign: 'center' }}>
+          <Text
+            style={{
+              fontFamily: 'Nunito_700Bold',
+              fontSize: 24,
+              color: '#111827',
+              textAlign: 'center',
+            }}
+          >
             We couldn't load your rewards
           </Text>
-          <Text style={{ fontFamily: 'Nunito_400Regular', fontSize: 20, color: '#6B7280', textAlign: 'center', marginTop: 8 }}>
+          <Text
+            style={{
+              fontFamily: 'Nunito_400Regular',
+              fontSize: 20,
+              color: '#6B7280',
+              textAlign: 'center',
+              marginTop: 8,
+            }}
+          >
             Ask a grown-up for help!
           </Text>
         </SafeAreaView>
@@ -239,43 +265,50 @@ export default function RewardsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#F5F0FF' }}>
       <SafeAreaView style={{ flex: 1 }}>
-      {/* Header */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 }}>
-        <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 32, color: '#111827' }}>
-          My Rewards
-        </Text>
-        <Text style={{ fontFamily: 'Nunito_400Regular', fontSize: 18, color: '#6B7280', marginTop: 4 }}>
-          {selectedChild.child_name} · {earnedCount} of {data.rewards.length} badges
-        </Text>
-      </View>
+        {/* Header */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 }}>
+          <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 32, color: '#111827' }}>
+            My Rewards
+          </Text>
+          <Text
+            style={{
+              fontFamily: 'Nunito_400Regular',
+              fontSize: 18,
+              color: '#6B7280',
+              marginTop: 4,
+            }}
+          >
+            {selectedChild.child_name} · {earnedCount} of {data.rewards.length} badges
+          </Text>
+        </View>
 
-      <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 128 }}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor="#7C3AED" />
-        }
-      >
-        {/* Star meter */}
-        <StarMeter totalStars={data.totalStars} />
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 128 }}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor="#7C3AED" />
+          }
+        >
+          {/* Star meter */}
+          <StarMeter totalStars={data.totalStars} />
 
-        {/* Streak counter */}
-        <StreakCounter streak={data.currentStreak} />
+          {/* Streak counter */}
+          <StreakCounter streak={data.currentStreak} />
 
-        {/* Badge grid header */}
-        <Text className="font-nunito-bold text-neutral-700 mb-3" style={{ fontSize: 20 }}>
-          Badges & Trophies
-        </Text>
+          {/* Badge grid header */}
+          <Text className="font-nunito-bold text-neutral-700 mb-3" style={{ fontSize: 20 }}>
+            Badges & Trophies
+          </Text>
 
-        <BadgeDisplay
-          badges={badgesForDisplay}
-          onBadgePress={(badge) => {
-            const full = data.rewards.find((r) => r.rewardId === badge.id);
-            if (full) setSelectedBadge(full);
-          }}
-        />
-      </ScrollView>
+          <BadgeDisplay
+            badges={badgesForDisplay}
+            onBadgePress={(badge) => {
+              const full = data.rewards.find((r) => r.rewardId === badge.id);
+              if (full) setSelectedBadge(full);
+            }}
+          />
+        </ScrollView>
 
-      <BadgeDetailModal badge={selectedBadge} onClose={() => setSelectedBadge(null)} />
+        <BadgeDetailModal badge={selectedBadge} onClose={() => setSelectedBadge(null)} />
       </SafeAreaView>
     </View>
   );

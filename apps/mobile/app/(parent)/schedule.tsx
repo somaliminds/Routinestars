@@ -118,7 +118,9 @@ function TimePicker({ value, onChange }: { value: string; onChange: (t: string) 
         <StepButton label="▼" onPress={() => changeHour(-1)} accessibilityLabel="Decrease hour" />
       </View>
 
-      <Text style={{ fontSize: 24, color: '#111827', fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}>
+      <Text
+        style={{ fontSize: 24, color: '#111827', fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}
+      >
         :
       </Text>
 
@@ -415,6 +417,7 @@ export default function ScheduleScreen() {
         },
       );
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- queryClient is stable
     [childId, userId, activeDay, addSet],
   );
 
@@ -517,7 +520,9 @@ export default function ScheduleScreen() {
           <ActivityIndicator color="#7C3AED" />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: r.scrollClearance + 72 }}>
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: r.scrollClearance + 72 }}
+        >
           {activeDay && activeDay.sets.length === 0 ? (
             <View className="items-center py-12">
               <Text className="text-[40px] mb-3">📅</Text>

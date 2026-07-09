@@ -142,17 +142,12 @@ export function OutcomeLinker({ setId, parentUserId }: OutcomeLinkerProps) {
   if (!setId) {
     return (
       <View style={styles.placeholder}>
-        <Text style={styles.placeholderText}>
-          Save the set first to link it to EHCP outcomes.
-        </Text>
+        <Text style={styles.placeholderText}>Save the set first to link it to EHCP outcomes.</Text>
       </View>
     );
   }
 
-  const totalActiveOutcomes = childrenWithOutcomes.reduce(
-    (sum, c) => sum + c.outcomes.length,
-    0,
-  );
+  const totalActiveOutcomes = childrenWithOutcomes.reduce((sum, c) => sum + c.outcomes.length, 0);
 
   return (
     <View>
@@ -161,9 +156,7 @@ export function OutcomeLinker({ setId, parentUserId }: OutcomeLinkerProps) {
           {tagsLoading || outcomesLoading ? (
             <ActivityIndicator size="small" color="#7C3AED" />
           ) : linkedIds.length === 0 ? (
-            <Text style={styles.placeholderText}>
-              No outcomes linked yet. Tap to add some.
-            </Text>
+            <Text style={styles.placeholderText}>No outcomes linked yet. Tap to add some.</Text>
           ) : (
             <View style={styles.chipsWrap}>
               {linkedIds.map((id) => {
@@ -186,12 +179,7 @@ export function OutcomeLinker({ setId, parentUserId }: OutcomeLinkerProps) {
           onPress={() => setPickerOpen(true)}
           disabled={totalActiveOutcomes === 0}
         >
-          <Text
-            style={[
-              styles.manageBtnText,
-              totalActiveOutcomes === 0 && { color: '#D1D5DB' },
-            ]}
-          >
+          <Text style={[styles.manageBtnText, totalActiveOutcomes === 0 && { color: '#D1D5DB' }]}>
             {linkedIds.length === 0 ? 'Add' : 'Manage'}
           </Text>
         </TouchableOpacity>
@@ -199,8 +187,8 @@ export function OutcomeLinker({ setId, parentUserId }: OutcomeLinkerProps) {
 
       {totalActiveOutcomes === 0 && (
         <Text style={styles.hint}>
-          Add active EHCP outcomes in Settings → EHCP Outcomes first, then come
-          back here to link them.
+          Add active EHCP outcomes in Settings → EHCP Outcomes first, then come back here to link
+          them.
         </Text>
       )}
 
@@ -239,8 +227,7 @@ export function OutcomeLinker({ setId, parentUserId }: OutcomeLinkerProps) {
                         <Text style={styles.checkbox}>{linked ? '☑' : '☐'}</Text>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.rowCategory}>
-                            {CATEGORY_EMOJI[o.category] ?? '✨'}{' '}
-                            {o.category.replace('_', ' ')}
+                            {CATEGORY_EMOJI[o.category] ?? '✨'} {o.category.replace('_', ' ')}
                           </Text>
                           <Text style={styles.rowText} numberOfLines={3}>
                             {o.outcome_text}

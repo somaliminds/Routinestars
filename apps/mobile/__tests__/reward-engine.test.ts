@@ -82,13 +82,15 @@ describe('calculateStreakFromDates', () => {
 
   it('stops at a gap in the sequence', () => {
     // Gap between 01-02 and 01-04 — streak should be 1 (just the last day)
-    expect(calculateStreakFromDates(['2026-01-05', '2026-01-04', '2026-01-02', '2026-01-01'])).toBe(2);
+    expect(calculateStreakFromDates(['2026-01-05', '2026-01-04', '2026-01-02', '2026-01-01'])).toBe(
+      2,
+    );
   });
 
   it('deduplicates dates (multiple completions same day)', () => {
-    expect(
-      calculateStreakFromDates(['2026-01-03', '2026-01-03', '2026-01-02', '2026-01-01']),
-    ).toBe(3);
+    expect(calculateStreakFromDates(['2026-01-03', '2026-01-03', '2026-01-02', '2026-01-01'])).toBe(
+      3,
+    );
   });
 
   it('correctly identifies a 7-day streak', () => {

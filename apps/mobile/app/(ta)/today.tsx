@@ -132,13 +132,13 @@ async function fetchStepsForSet(setId: string): Promise<StepRow[]> {
 }
 
 const STATUS_LABEL: Record<string, { label: string; bg: string; text: string }> = {
-  PENDING:           { label: 'Pending', bg: '#EDE9FE', text: '#5B21B6' },
-  IN_PROGRESS:       { label: 'In progress', bg: '#7C3AED', text: '#FFFFFF' },
-  PAUSED:            { label: 'Paused', bg: '#FED7AA', text: '#9A3412' },
+  PENDING: { label: 'Pending', bg: '#EDE9FE', text: '#5B21B6' },
+  IN_PROGRESS: { label: 'In progress', bg: '#7C3AED', text: '#FFFFFF' },
+  PAUSED: { label: 'Paused', bg: '#FED7AA', text: '#9A3412' },
   AWAITING_APPROVAL: { label: 'Awaiting approval', bg: '#FEF3C7', text: '#854D0E' },
-  APPROVED:          { label: 'Approved', bg: '#BBF7D0', text: '#14532D' },
-  LOCKED:            { label: '✓ Done', bg: '#BBF7D0', text: '#14532D' },
-  SKIPPED:           { label: 'Skipped', bg: '#F3F4F6', text: '#6B7280' },
+  APPROVED: { label: 'Approved', bg: '#BBF7D0', text: '#14532D' },
+  LOCKED: { label: '✓ Done', bg: '#BBF7D0', text: '#14532D' },
+  SKIPPED: { label: 'Skipped', bg: '#F3F4F6', text: '#6B7280' },
 };
 
 export default function TaTodayScreen() {
@@ -273,9 +273,7 @@ export default function TaTodayScreen() {
                     onPress={() => setSelectedChildId(c.profile_id)}
                   >
                     <Text style={{ fontSize: 22 }}>{c.avatar_emoji}</Text>
-                    <Text
-                      style={[styles.childChipText, isActive && styles.childChipTextActive]}
-                    >
+                    <Text style={[styles.childChipText, isActive && styles.childChipTextActive]}>
                       {c.child_name}
                     </Text>
                   </TouchableOpacity>
@@ -314,9 +312,7 @@ export default function TaTodayScreen() {
                         </Text>
                       </View>
                       <View style={[styles.badge, { backgroundColor: meta.bg }]}>
-                        <Text style={[styles.badgeText, { color: meta.text }]}>
-                          {meta.label}
-                        </Text>
+                        <Text style={[styles.badgeText, { color: meta.text }]}>{meta.label}</Text>
                       </View>
                     </TouchableOpacity>
                   );

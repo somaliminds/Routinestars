@@ -59,10 +59,7 @@ export function AuthLayout({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={[
-            styles.scroll,
-            centered && styles.scrollCentered,
-          ]}
+          contentContainerStyle={[styles.scroll, centered && styles.scrollCentered]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

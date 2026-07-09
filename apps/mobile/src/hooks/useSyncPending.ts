@@ -104,12 +104,9 @@ export function useSyncPending(isAuthenticated: boolean): void {
     void tryFlush();
 
     // Flush when app returns to foreground
-    const subscription = AppState.addEventListener(
-      'change',
-      (state: AppStateStatus) => {
-        if (state === 'active') void tryFlush();
-      },
-    );
+    const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') void tryFlush();
+    });
 
     return () => subscription.remove();
   }, [isAuthenticated]);

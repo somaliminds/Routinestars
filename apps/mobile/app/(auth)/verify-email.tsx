@@ -10,7 +10,9 @@ export default function VerifyEmailScreen() {
   const router = useRouter();
 
   async function handleResend() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user?.email) {
       await supabase.auth.resend({ type: 'signup', email: user.email });
     }

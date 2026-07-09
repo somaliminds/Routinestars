@@ -63,8 +63,8 @@ export default function SetupPinScreen() {
       });
 
       if (error) {
-        const is401 = (error as { status?: number }).status === 401
-          || String(error).includes('401');
+        const is401 =
+          (error as { status?: number }).status === 401 || String(error).includes('401');
         const msg = is401
           ? 'Your session has expired. Please sign in again.'
           : 'Could not save your PIN. Please try again.';
@@ -99,7 +99,9 @@ export default function SetupPinScreen() {
     <SafeAreaView style={styles.screen}>
       <View style={styles.content}>
         <Text style={styles.emoji}>🔒</Text>
-        <Text style={styles.title}>{step === 'create' ? 'Create your PIN' : 'Confirm your PIN'}</Text>
+        <Text style={styles.title}>
+          {step === 'create' ? 'Create your PIN' : 'Confirm your PIN'}
+        </Text>
         <Text style={styles.subtitle}>
           {step === 'create'
             ? 'Choose a 4-digit PIN to protect your parent settings'

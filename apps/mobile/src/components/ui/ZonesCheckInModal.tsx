@@ -42,10 +42,10 @@ interface ZoneTile {
 
 // Kuypers Zones colour reference — see https://www.zonesofregulation.com
 const ZONES: ZoneTile[] = [
-  { zone: 'BLUE',   emoji: '😴', label: 'Tired',  bg: '#BFDBFE', fg: '#1E3A8A' },
-  { zone: 'GREEN',  emoji: '🙂', label: 'Ready',  bg: '#BBF7D0', fg: '#14532D' },
+  { zone: 'BLUE', emoji: '😴', label: 'Tired', bg: '#BFDBFE', fg: '#1E3A8A' },
+  { zone: 'GREEN', emoji: '🙂', label: 'Ready', bg: '#BBF7D0', fg: '#14532D' },
   { zone: 'YELLOW', emoji: '😬', label: 'Wiggly', bg: '#FEF08A', fg: '#713F12' },
-  { zone: 'RED',    emoji: '😡', label: 'Big',    bg: '#FECACA', fg: '#7F1D1D' },
+  { zone: 'RED', emoji: '😡', label: 'Big', bg: '#FECACA', fg: '#7F1D1D' },
 ];
 
 export function ZonesCheckInModal({

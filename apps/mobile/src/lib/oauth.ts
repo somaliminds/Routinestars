@@ -64,7 +64,7 @@ function parseSupabaseRedirect(url: string): {
 } {
   // Supabase puts tokens after `#` (URL fragment), not `?` (query string).
   const hash = url.includes('#') ? url.split('#')[1]! : '';
-  const search = url.includes('?') ? url.split('?')[1]?.split('#')[0] ?? '' : '';
+  const search = url.includes('?') ? (url.split('?')[1]?.split('#')[0] ?? '') : '';
   const params = new URLSearchParams(hash || search);
   return {
     accessToken: params.get('access_token') ?? undefined,

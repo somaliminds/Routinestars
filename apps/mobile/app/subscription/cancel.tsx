@@ -14,7 +14,15 @@ export default function SubscriptionCancelScreen() {
   }, [router]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F5F0FF', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: '#F5F0FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+      }}
+    >
       <Text style={{ fontFamily: 'Nunito_400Regular', fontSize: 18, color: '#6B7280' }}>
         Returning…
       </Text>

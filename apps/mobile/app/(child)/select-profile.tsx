@@ -119,9 +119,7 @@ export default function SelectProfileScreen() {
           >
             <Text style={styles.profileEmoji}>{profile.avatar_emoji}</Text>
             <Text style={styles.profileName}>{profile.child_name}</Text>
-            <Text style={styles.profileStars}>
-              ⭐ {profile.total_stars.toLocaleString()} stars
-            </Text>
+            <Text style={styles.profileStars}>⭐ {profile.total_stars.toLocaleString()} stars</Text>
           </TouchableOpacity>
         ))}
 

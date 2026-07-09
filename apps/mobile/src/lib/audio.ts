@@ -68,6 +68,7 @@ export async function playStepAudio(text: string | null): Promise<void> {
     if (voice) options.voice = voice;
     Speech.speak(text, options);
   } catch (e) {
+    // eslint-disable-next-line no-console -- diagnostic for TTS failures
     console.log('[audio] speak threw:', e);
   }
 }

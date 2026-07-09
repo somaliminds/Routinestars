@@ -306,7 +306,7 @@ export default function DashboardScreen() {
           <TouchableOpacity
             style={{
               backgroundColor: 'rgba(124,58,237,0.08)',
-              borderColor:     'rgba(124,58,237,0.25)',
+              borderColor: 'rgba(124,58,237,0.25)',
               borderWidth: 1,
               borderRadius: 18,
               padding: 16,
@@ -331,7 +331,9 @@ export default function DashboardScreen() {
                 Tap to review
               </Text>
             </View>
-            <Text style={{ fontFamily: 'Inter_400Regular', color: '#7C3AED', fontSize: 22 }}>›</Text>
+            <Text style={{ fontFamily: 'Inter_400Regular', color: '#7C3AED', fontSize: 22 }}>
+              ›
+            </Text>
           </TouchableOpacity>
         )}
 

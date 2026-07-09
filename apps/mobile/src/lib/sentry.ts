@@ -44,7 +44,7 @@ export function reportError(err: unknown, context?: Record<string, unknown>): vo
  */
 export const Sentry = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  wrap: <T,>(Component: T): T => Component,
+  wrap: <T>(Component: T): T => Component,
   captureException: (err: unknown) => {
     console.error('[Sentry stub] captureException:', err);
   },

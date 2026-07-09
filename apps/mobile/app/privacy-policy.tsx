@@ -21,14 +21,20 @@ export default function PrivacyPolicyScreen() {
     <SafeAreaView className="flex-1 bg-white">
       {/* Header */}
       <View className="flex-row items-center px-5 pt-4 pb-2 border-b border-neutral-100">
-        <TouchableOpacity onPress={() => router.back()} className="pr-4 py-2" accessibilityRole="button">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="pr-4 py-2"
+          accessibilityRole="button"
+        >
           <Text className="font-inter text-brand-primary">← Back</Text>
         </TouchableOpacity>
         <Text className="font-inter font-bold text-neutral-900 text-base">Privacy Policy</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <Text className="font-inter text-neutral-400 text-xs mb-6">Last updated: {LAST_UPDATED}</Text>
+        <Text className="font-inter text-neutral-400 text-xs mb-6">
+          Last updated: {LAST_UPDATED}
+        </Text>
 
         <Section title="1. Who We Are">
           {`${COMPANY} ("RoutineStars", "we", "us", "our") operates the RoutineStars mobile application. We are registered in England and Wales.\n\nContact: ${CONTACT_EMAIL}`}

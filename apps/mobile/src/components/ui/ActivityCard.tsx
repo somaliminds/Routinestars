@@ -4,17 +4,14 @@ import type { ScheduledSetStatus } from '@/types/database';
 // MY24 solid pastel circles — bright, warm, child-friendly
 const ICON_COLORS = ['#4FD1C5', '#F687B3', '#A78BFA', '#FBB774', '#7DD3FC', '#86EFAC'];
 
-const STATUS_BADGE: Record<
-  ScheduledSetStatus,
-  { bg: string; text: string; label: string }
-> = {
-  PENDING:           { bg: '#EDE0FF', text: '#7C3AED', label: 'Ready' },
-  IN_PROGRESS:       { bg: '#7C3AED', text: '#FFFFFF', label: 'In Progress' },
-  PAUSED:            { bg: '#FFE4C8', text: '#D97706', label: 'Paused' },
+const STATUS_BADGE: Record<ScheduledSetStatus, { bg: string; text: string; label: string }> = {
+  PENDING: { bg: '#EDE0FF', text: '#7C3AED', label: 'Ready' },
+  IN_PROGRESS: { bg: '#7C3AED', text: '#FFFFFF', label: 'In Progress' },
+  PAUSED: { bg: '#FFE4C8', text: '#D97706', label: 'Paused' },
   AWAITING_APPROVAL: { bg: '#FFF0C0', text: '#B45309', label: 'Waiting' },
-  APPROVED:          { bg: '#C8F5E0', text: '#059669', label: 'Approved' },
-  LOCKED:            { bg: '#C8F5E0', text: '#059669', label: '✓ Done' },
-  SKIPPED:           { bg: '#F3F4F6', text: '#6B7280', label: 'Skipped' },
+  APPROVED: { bg: '#C8F5E0', text: '#059669', label: 'Approved' },
+  LOCKED: { bg: '#C8F5E0', text: '#059669', label: '✓ Done' },
+  SKIPPED: { bg: '#F3F4F6', text: '#6B7280', label: 'Skipped' },
 };
 
 interface ActivityCardProps {
@@ -66,8 +63,12 @@ export function ActivityCard({
         <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
           {title}
         </Text>
-        <Text style={styles.time} numberOfLines={1}>{startTime}</Text>
-        <Text style={styles.stars} numberOfLines={1}>⭐ {starValue} stars</Text>
+        <Text style={styles.time} numberOfLines={1}>
+          {startTime}
+        </Text>
+        <Text style={styles.stars} numberOfLines={1}>
+          ⭐ {starValue} stars
+        </Text>
       </View>
 
       {/* Status pill */}
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
   badge: {
     borderRadius: 999, // true pill, not 20px rounded square
     paddingHorizontal: 12,
-    paddingVertical: 8,  // was 6 — proportional to text (1.6× rule)
+    paddingVertical: 8, // was 6 — proportional to text (1.6× rule)
     marginLeft: 8,
   },
   badgeText: {

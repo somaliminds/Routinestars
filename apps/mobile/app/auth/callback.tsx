@@ -16,7 +16,7 @@ import { supabase } from '@/lib/supabase';
 /** Pull access_token / refresh_token / code out of either #fragment or ?query. */
 function extractAuthParams(url: string) {
   const hashPart = url.includes('#') ? url.split('#')[1]! : '';
-  const queryPart = url.includes('?') ? url.split('?')[1]?.split('#')[0] ?? '' : '';
+  const queryPart = url.includes('?') ? (url.split('?')[1]?.split('#')[0] ?? '') : '';
   const params = new URLSearchParams(hashPart || queryPart);
   return {
     accessToken: params.get('access_token') ?? undefined,

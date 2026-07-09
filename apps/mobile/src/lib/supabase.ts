@@ -36,7 +36,10 @@ async function setChunked(key: string, value: string): Promise<void> {
   await SecureStore.deleteItemAsync(key);
   const chunks = Math.ceil(value.length / CHUNK_SIZE);
   for (let i = 0; i < chunks; i++) {
-    await SecureStore.setItemAsync(`${key}.chunk_${i}`, value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+    await SecureStore.setItemAsync(
+      `${key}.chunk_${i}`,
+      value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
+    );
   }
   await SecureStore.setItemAsync(`${key}.chunk_count`, String(chunks));
 }

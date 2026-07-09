@@ -69,7 +69,9 @@ async function fetchTodaySchedule(childId: string): Promise<TodaySchedule | null
     const [{ data: activitySets }, { data: starTotals }] = await Promise.all([
       supabase
         .from('activity_sets')
-        .select('set_id, set_name, icon_emoji, colour_theme, total_duration_mins, requires_approval')
+        .select(
+          'set_id, set_name, icon_emoji, colour_theme, total_duration_mins, requires_approval',
+        )
         .in('set_id', safeSetIds),
       supabase.from('steps').select('set_id, reward_stars').in('set_id', safeSetIds),
     ]);

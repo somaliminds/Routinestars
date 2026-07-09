@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LockDeviceModal } from '@/components/ui/LockDeviceModal';
 import { useBlockBackButton } from '@/hooks/useBlockBackButton';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -232,7 +225,9 @@ export default function ChildHomeScreen() {
                 {getGreeting()},{'\n'}
                 {selectedChild.avatar_emoji} {selectedChild.child_name}!
               </Text>
-              <Text style={styles.date} numberOfLines={1}>{today}</Text>
+              <Text style={styles.date} numberOfLines={1}>
+                {today}
+              </Text>
             </View>
             <View style={styles.starsBadge}>
               <StarCounter count={todayStars} size="md" />
@@ -274,8 +269,22 @@ export default function ChildHomeScreen() {
               <Text style={styles.sectionLabel}>
                 {firstThenMode ? 'Right Now' : 'Your Activities'}
               </Text>
-              <ActivityCard title="" iconEmoji="" starValue={0} status="PENDING" startTime="" isLoading />
-              <ActivityCard title="" iconEmoji="" starValue={0} status="PENDING" startTime="" isLoading />
+              <ActivityCard
+                title=""
+                iconEmoji=""
+                starValue={0}
+                status="PENDING"
+                startTime=""
+                isLoading
+              />
+              <ActivityCard
+                title=""
+                iconEmoji=""
+                starValue={0}
+                status="PENDING"
+                startTime=""
+                isLoading
+              />
             </>
           )}
 
@@ -283,7 +292,9 @@ export default function ChildHomeScreen() {
             <View style={[styles.card, styles.centredCard]}>
               <Text style={styles.emptyIcon}>😟</Text>
               <Text style={styles.emptyTitle}>Couldn't load today's schedule</Text>
-              <Text style={styles.emptySub}>Pull down to try again, or ask a grown-up for help.</Text>
+              <Text style={styles.emptySub}>
+                Pull down to try again, or ask a grown-up for help.
+              </Text>
             </View>
           )}
 

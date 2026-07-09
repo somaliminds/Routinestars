@@ -24,7 +24,12 @@ interface LockDeviceModalProps {
 export function LockDeviceModal({ visible, onClose }: LockDeviceModalProps) {
   const isIOS = Platform.OS === 'ios';
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
       <SafeAreaView style={styles.screen}>
         <View style={styles.header}>
           <Text style={styles.title}>Lock the tablet</Text>
@@ -55,16 +60,16 @@ export function LockDeviceModal({ visible, onClose }: LockDeviceModalProps) {
           ) : (
             <>
               <Step n={1} title="One-time setup (if not done)">
-                Open the tablet's Settings → Security → App pinning (or "Screen pinning") → turn
-                it on. Make sure "Ask for PIN before unpinning" is also on.
+                Open the tablet's Settings → Security → App pinning (or "Screen pinning") → turn it
+                on. Make sure "Ask for PIN before unpinning" is also on.
               </Step>
               <Step n={2} title="To lock now">
                 Open the Recent Apps screen (the square or three-line gesture at the bottom). Tap
                 the RoutineStars icon at the top of its card, then tap "Pin".
               </Step>
               <Step n={3} title="To unlock later">
-                Hold Back and Recent Apps together (or follow the on-screen prompt) and enter
-                your unlock PIN.
+                Hold Back and Recent Apps together (or follow the on-screen prompt) and enter your
+                unlock PIN.
               </Step>
             </>
           )}
