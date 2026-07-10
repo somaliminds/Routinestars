@@ -1,5 +1,13 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  Image,
+  StyleSheet,
+  Animated,
+  AccessibilityInfo,
+} from 'react-native';
 import { ProgressBar } from './ProgressBar';
 import { TimeTimerWedge } from './TimeTimerWedge';
 import { useLocalIllustration } from '@/hooks/useLocalIllustration';
@@ -37,6 +45,71 @@ export function StepCard({
   const remaining = Math.max(durationSeconds - elapsedSeconds, 0);
   const isOvertime = elapsedSeconds > durationSeconds;
   const [imgFailed, setImgFailed] = useState(false);
+
+  // ── Hold-to-finish (anti-cheat) ──────────────────────────────────────────
+  // Parents reported children tapping "Done" instantly to reach the reward
+  // without doing the step. A short press-and-hold adds just enough friction
+  // to stop impulsive tapping, without ever blocking the child (SEN rule:
+  // the timer/feedback never punishes). Released early = no penalty, resets.
+  const HOLD_MS = 1400;
+  const [holding, setHolding] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const fill = useRef(new Animated.Value(0)).current;
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((v) => {
+      if (mounted) setReduceMotion(v);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Reset the hold whenever the step changes.
+  useEffect(() => {
+    doneRef.current = false;
+    setHolding(false);
+    fill.setValue(0);
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+  }, [stepNumber, fill]);
+
+  // Clear any pending timer on unmount.
+  useEffect(
+    () => () => {
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+    },
+    [],
+  );
+
+  const startHold = () => {
+    if (doneRef.current) return;
+    setHolding(true);
+    if (!reduceMotion) {
+      Animated.timing(fill, { toValue: 1, duration: HOLD_MS, useNativeDriver: false }).start();
+    }
+    holdTimer.current = setTimeout(() => {
+      doneRef.current = true;
+      fill.setValue(1);
+      onComplete();
+    }, HOLD_MS);
+  };
+
+  const endHold = () => {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+    if (!doneRef.current) {
+      setHolding(false);
+      Animated.timing(fill, { toValue: 0, duration: 160, useNativeDriver: false }).start();
+    }
+  };
 
   // Sprint 7: parent photo on this device wins over the database URL.
   const { uri: localUri } = useLocalIllustration(stepId);
@@ -102,19 +175,29 @@ export function StepCard({
         <ProgressBar progress={progress} variant="timer" showLabel={false} />
       </View>
 
-      {/* BIG TICK button — solid success green with depth */}
+      {/* BIG hold-to-finish button — a darker fill sweeps as the child holds */}
       <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.tickButton}
-          onPress={onComplete}
+        <Pressable
+          style={[styles.tickButton, reduceMotion && holding && styles.tickButtonHolding]}
+          onPressIn={startHold}
+          onPressOut={endHold}
+          onAccessibilityTap={onComplete}
           accessibilityLabel={`Mark step ${stepNumber} complete`}
           accessibilityRole="button"
-          accessibilityHint="Double tap to mark this step as done"
-          activeOpacity={0.85}
+          accessibilityHint="Press and hold the button until it fills to mark this step done"
         >
+          {!reduceMotion && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.tickFill,
+                { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+              ]}
+            />
+          )}
           <Text style={styles.tickEmoji}>✅</Text>
-          <Text style={styles.tickLabel}>Done!</Text>
-        </TouchableOpacity>
+          <Text style={styles.tickLabel}>{holding ? 'Keep holding…' : 'Hold to finish'}</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -218,12 +301,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 10,
+    overflow: 'hidden', // clips the sweeping fill to the rounded shape
     // Shadow matches surface colour, not darker — physically correct light
     shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
+  },
+  // Reduced-motion: a single static darkening instead of a moving sweep.
+  tickButtonHolding: { backgroundColor: '#059669' },
+  // The progress sweep — a darker green filling left→right as the child holds.
+  tickFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#059669',
   },
   tickEmoji: { fontSize: 36 },
   tickLabel: {
