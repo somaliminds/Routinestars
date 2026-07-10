@@ -21,6 +21,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { differenceInYears, format, subDays } from 'date-fns';
@@ -66,8 +67,16 @@ interface ScopedData {
     window_to: string | null;
   }[];
   completions30d: number;
+  rate30d: { day: string; scheduled: number; completed: number }[];
   zones7d: { zone: string; occurred_at: string }[];
 }
+
+// EHCP outcome status → clinical pill (semantic colour, kept off the teal accent).
+const OUTCOME_STATUS_META: Record<string, { label: string; bg: string; ink: string }> = {
+  ACTIVE: { label: 'Active', bg: '#E4EEF6', ink: '#0369A1' },
+  ACHIEVED: { label: 'Achieved', bg: '#E7F4EC', ink: '#15803D' },
+  DISCONTINUED: { label: 'Discontinued', bg: '#EEF2F7', ink: '#5A6B80' },
+};
 
 async function loadScopedData(childId: string): Promise<ScopedData> {
   const consent =
@@ -82,6 +91,7 @@ async function loadScopedData(childId: string): Promise<ScopedData> {
     outcomes: [],
     apdr: [],
     completions30d: 0,
+    rate30d: [],
     zones7d: [],
   };
   if (!consent) return out;
@@ -144,6 +154,11 @@ async function loadScopedData(childId: string): Promise<ScopedData> {
           .eq('child_id', childId)
           .gte('completed_at', `${from}T00:00:00`);
         out.completions30d = count ?? 0;
+        // 30-day scheduled-vs-completed series for the sparkline (RLS-scoped).
+        const { data: rate } = await supabase.rpc('get_completion_rate_30d', {
+          p_child_id: childId,
+        });
+        out.rate30d = (rate ?? []) as ScopedData['rate30d'];
       })(),
     );
   }
@@ -318,14 +333,22 @@ export default function ProfessionalChildDetail() {
               {data.outcomes.length === 0 ? (
                 <Empty>No outcomes recorded.</Empty>
               ) : (
-                data.outcomes.map((o) => (
-                  <View key={o.outcome_id} style={styles.rowCard}>
-                    <Text style={styles.rowTag}>
-                      {o.category} · {o.status}
-                    </Text>
-                    <Text style={styles.rowText}>{o.outcome_text}</Text>
-                  </View>
-                ))
+                data.outcomes.map((o) => {
+                  const meta = OUTCOME_STATUS_META[o.status] ?? OUTCOME_STATUS_META.ACTIVE;
+                  return (
+                    <View key={o.outcome_id} style={styles.rowCard}>
+                      <View style={styles.rowHead}>
+                        <Text style={styles.rowTag}>{o.category}</Text>
+                        <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
+                          <Text style={[styles.statusPillText, { color: meta.ink }]}>
+                            {meta.label}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.rowText}>{o.outcome_text}</Text>
+                    </View>
+                  );
+                })
               )}
             </Section>
           )}
@@ -351,9 +374,27 @@ export default function ProfessionalChildDetail() {
           {/* Routine progress */}
           {has('COMPLETIONS') && (
             <Section title="Routine progress (last 30 days)">
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{data.completions30d}</Text>
-                <Text style={styles.statLabel}>routine completions recorded</Text>
+              <View style={styles.rowCard}>
+                {(() => {
+                  const sched = data.rate30d.reduce((s, r) => s + r.scheduled, 0);
+                  const done = data.rate30d.reduce((s, r) => s + r.completed, 0);
+                  const daysWithData = data.rate30d.filter((r) => r.scheduled > 0).length;
+                  const pct = sched > 0 ? Math.round((done / sched) * 100) : null;
+                  return (
+                    <>
+                      <View style={styles.metricHead}>
+                        <Text style={styles.metricBig}>{pct != null ? `${pct}%` : '—'}</Text>
+                        <Text style={styles.metricCap}>
+                          {data.completions30d} completion{data.completions30d === 1 ? '' : 's'}
+                          {daysWithData > 0
+                            ? ` · ${daysWithData} active day${daysWithData === 1 ? '' : 's'}`
+                            : ''}
+                        </Text>
+                      </View>
+                      <Sparkline data={data.rate30d} />
+                    </>
+                  );
+                })()}
               </View>
             </Section>
           )}
@@ -506,6 +547,48 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <Text style={styles.empty}>{children}</Text>;
 }
 
+/** Daily completion-rate sparkline (0–100% per day) with an emphasised endpoint.
+ *  Measured width (not stretched) so the stroke and endpoint stay undistorted. */
+function Sparkline({ data }: { data: { scheduled: number; completed: number }[] }) {
+  const [w, setW] = useState(0);
+  const pts = data.map((r) => (r.scheduled > 0 ? r.completed / r.scheduled : 0));
+  const H = 44;
+  const pad = 3;
+  const W = w || 280;
+  if (pts.length < 2) {
+    return <View style={{ height: H }} onLayout={(e) => setW(e.nativeEvent.layout.width)} />;
+  }
+  const x = (i: number) => pad + (i * (W - pad * 2)) / (pts.length - 1);
+  const y = (v: number) => H - pad - v * (H - pad * 2);
+  let line = '';
+  let area = `M ${x(0).toFixed(1)} ${H} `;
+  pts.forEach((v, i) => {
+    const seg = `${i ? 'L' : 'M'} ${x(i).toFixed(1)} ${y(v).toFixed(1)} `;
+    line += seg;
+    area += `L ${x(i).toFixed(1)} ${y(v).toFixed(1)} `;
+  });
+  area += `L ${x(pts.length - 1).toFixed(1)} ${H} Z`;
+  const last = pts[pts.length - 1];
+  return (
+    <View style={{ marginTop: 10 }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+      {w > 0 && (
+        <Svg width={W} height={H}>
+          <Path d={area} fill="#0F766E" fillOpacity={0.1} />
+          <Path
+            d={line}
+            fill="none"
+            stroke="#0F766E"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+          <Circle cx={x(pts.length - 1)} cy={y(last)} r={3.2} fill="#0F766E" />
+        </Svg>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F6F8FB' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8 },
@@ -582,25 +665,44 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
+  rowHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+    gap: 8,
+  },
   rowTag: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 10.5,
     color: '#0F766E',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
-    marginBottom: 4,
+    flexShrink: 1,
+  },
+  statusPill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  statusPillText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10.5,
+    letterSpacing: 0.2,
   },
   rowText: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#101B2D', lineHeight: 18 },
-  statCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E3E9F0',
-    padding: 16,
-    alignItems: 'center',
+  metricHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  metricBig: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 30,
+    color: '#101B2D',
+    letterSpacing: -0.5,
+    fontVariant: ['tabular-nums'],
   },
-  statNumber: { fontFamily: 'Inter_600SemiBold', fontSize: 34, color: '#0F766E' },
-  statLabel: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#5A6B80', marginTop: 2 },
+  metricCap: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#5A6B80',
+    fontVariant: ['tabular-nums'],
+    flexShrink: 1,
+    textAlign: 'right',
+  },
   zoneRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
