@@ -314,7 +314,7 @@ export default function SubscriptionScreen() {
         : 'text-neutral-500';
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+    <SafeAreaView className="flex-1 bg-[#F7F8FC]">
       <View className="px-5 pt-6 pb-4">
         <Text className="font-inter font-bold text-neutral-900" style={{ fontSize: 24 }}>
           Subscription

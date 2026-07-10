@@ -288,7 +288,7 @@ function ChildModal({
               <TouchableOpacity
                 key={e}
                 onPress={() => setEmoji(e)}
-                className={`w-12 h-12 rounded-xl items-center justify-center ${emoji === e ? 'bg-brand-light border-2 border-brand-primary' : 'bg-[#F5F0FF]'}`}
+                className={`w-12 h-12 rounded-xl items-center justify-center ${emoji === e ? 'bg-brand-light border-2 border-brand-primary' : 'bg-[#F7F8FC]'}`}
               >
                 <Text style={{ fontSize: 24 }}>{e}</Text>
               </TouchableOpacity>
@@ -300,7 +300,7 @@ function ChildModal({
             Child's name
           </Text>
           <TextInput
-            className="bg-[#F5F0FF] rounded-xl px-4 py-3 font-inter text-neutral-900 text-sm mb-1"
+            className="bg-[#F7F8FC] rounded-xl px-4 py-3 font-inter text-neutral-900 text-sm mb-1"
             placeholder="e.g. Jamie"
             value={name}
             onChangeText={setName}
@@ -317,7 +317,7 @@ function ChildModal({
             Date of birth
           </Text>
           <TextInput
-            className="bg-[#F5F0FF] rounded-xl px-4 py-3 font-inter text-neutral-900 text-sm mb-1"
+            className="bg-[#F7F8FC] rounded-xl px-4 py-3 font-inter text-neutral-900 text-sm mb-1"
             placeholder="YYYY-MM-DD  (e.g. 2018-05-23)"
             value={dob}
             onChangeText={handleDobChange}
@@ -335,7 +335,7 @@ function ChildModal({
           {/* First-Then mode toggle — ASD support preference, persisted per child */}
           <View
             style={{
-              backgroundColor: '#F5F0FF',
+              backgroundColor: '#F7F8FC',
               borderRadius: 16,
               padding: 14,
               marginBottom: 16,
@@ -476,7 +476,7 @@ function PinChangeSection({ userId }: { userId: string }) {
         <View key={label} className="mb-3">
           <Text className="font-inter text-neutral-600 text-xs mb-1">{label}</Text>
           <TextInput
-            className="bg-[#F5F0FF] rounded-xl px-4 py-3 font-inter text-neutral-900 tracking-widest text-center text-lg"
+            className="bg-[#F7F8FC] rounded-xl px-4 py-3 font-inter text-neutral-900 tracking-widest text-center text-lg"
             placeholder="••••"
             value={value}
             onChangeText={setter}
@@ -868,7 +868,7 @@ function CareTeamSection({
       {/* Invite form */}
       <Text className="font-inter text-neutral-600 text-xs mb-1">Invite by email</Text>
       <TextInput
-        className="bg-[#F5F0FF] rounded-xl px-4 py-3 font-inter text-neutral-900 text-sm mb-2"
+        className="bg-[#F7F8FC] rounded-xl px-4 py-3 font-inter text-neutral-900 text-sm mb-2"
         placeholder="teacher@school.edu"
         value={inviteEmail}
         onChangeText={(t) => {
@@ -1017,7 +1017,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+    <SafeAreaView className="flex-1 bg-[#F7F8FC]">
       <View className="px-5 pt-6 pb-4">
         <Text className="font-inter font-bold text-neutral-900" style={{ fontSize: 24 }}>
           Settings

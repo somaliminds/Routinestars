@@ -102,7 +102,7 @@ function CompletionRateCard({
           {completed}/{scheduled} sets done
         </Text>
       </View>
-      <View className="h-3 bg-[#F5F0FF] rounded-full overflow-hidden">
+      <View className="h-3 bg-[#F7F8FC] rounded-full overflow-hidden">
         <View
           className={`h-full rounded-full ${barColor}`}
           style={{ width: `${Math.max(pct, scheduled === 0 ? 0 : 3)}%` }}
@@ -134,7 +134,7 @@ function WeekProgressChart({ days }: { days: DayProgress[] }) {
           const barPct = day.scheduled === 0 ? 0 : day.pct;
           const barColor =
             day.scheduled === 0
-              ? 'bg-[#F5F0FF]'
+              ? 'bg-[#F7F8FC]'
               : barPct >= 80
                 ? 'bg-accent-success'
                 : barPct >= 50
@@ -149,7 +149,7 @@ function WeekProgressChart({ days }: { days: DayProgress[] }) {
                 </Text>
               )}
               <View
-                className="w-full bg-[#F5F0FF] rounded-t-sm overflow-hidden"
+                className="w-full bg-[#F7F8FC] rounded-t-sm overflow-hidden"
                 style={{ height: 56 }}
               >
                 <View
@@ -241,7 +241,7 @@ export default function DashboardScreen() {
 
   if (childrenLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F5F0FF] items-center justify-center">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC] items-center justify-center">
         <ActivityIndicator size="large" color="#7C3AED" />
       </SafeAreaView>
     );
@@ -250,7 +250,7 @@ export default function DashboardScreen() {
   const pendingApprovals = approvals ?? [];
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+    <SafeAreaView className="flex-1 bg-[#F7F8FC]">
       {/* Header */}
       <View className="px-5 pt-6 pb-4 flex-row items-center justify-between">
         <View>

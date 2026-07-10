@@ -196,7 +196,7 @@ function ScheduledSetRow({ item, onRemove }: { item: ScheduledSetDetail; onRemov
       </View>
       <View
         className={`rounded-lg px-2 py-1 mr-2 ${
-          item.status === 'PENDING' ? 'bg-[#F5F0FF]' : 'bg-accent-success/10'
+          item.status === 'PENDING' ? 'bg-[#F7F8FC]' : 'bg-accent-success/10'
         }`}
       >
         <Text
@@ -276,7 +276,7 @@ function AddActivityModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC]">
         {/* Header */}
         <View className="flex-row items-center justify-between px-5 pt-4 pb-3 border-b border-neutral-200 bg-white">
           <TouchableOpacity onPress={onClose} accessibilityRole="button">
@@ -437,7 +437,7 @@ export default function ScheduleScreen() {
 
   if (!activeChild) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F5F0FF] items-center justify-center px-6">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC] items-center justify-center px-6">
         <Text className="font-inter text-neutral-500 text-center text-sm">
           Select a child profile from the Dashboard first.
         </Text>
@@ -446,7 +446,7 @@ export default function ScheduleScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+    <SafeAreaView className="flex-1 bg-[#F7F8FC]">
       {/* Header */}
       <View className="px-5 pt-6 pb-3 flex-row items-center justify-between">
         <TouchableOpacity

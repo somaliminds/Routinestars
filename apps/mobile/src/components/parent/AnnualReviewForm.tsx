@@ -347,7 +347,7 @@ export function AnnualReviewForm({ visible, childId, childName, onClose, onSaved
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5F0FF' },
+  screen: { flex: 1, backgroundColor: '#F7F8FC' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

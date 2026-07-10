@@ -199,7 +199,7 @@ export function OutcomeLinker({ setId, parentUserId }: OutcomeLinkerProps) {
         presentationStyle="pageSheet"
         onRequestClose={() => setPickerOpen(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F0FF' }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F7F8FC' }}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setPickerOpen(false)}>
               <Text style={styles.modalAction}>Done</Text>
@@ -248,7 +248,7 @@ export function OutcomeLinker({ setId, parentUserId }: OutcomeLinkerProps) {
 
 const styles = StyleSheet.create({
   placeholder: {
-    backgroundColor: '#F5F0FF',
+    backgroundColor: '#F7F8FC',
     padding: 12,
     borderRadius: 14,
   },
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    backgroundColor: '#F5F0FF',
+    backgroundColor: '#F7F8FC',
     padding: 12,
     borderRadius: 14,
   },

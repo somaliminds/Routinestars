@@ -204,7 +204,7 @@ function CompletionChart({ days }: { days: DailyRate[] }) {
         {days.map((day) => {
           const barColor =
             day.scheduled === 0
-              ? 'bg-[#F5F0FF]'
+              ? 'bg-[#F7F8FC]'
               : day.pct >= 80
                 ? 'bg-accent-success'
                 : day.pct >= 50
@@ -213,7 +213,7 @@ function CompletionChart({ days }: { days: DailyRate[] }) {
           return (
             <View
               key={day.date}
-              className="flex-1 bg-[#F5F0FF] rounded-t-sm overflow-hidden mx-px"
+              className="flex-1 bg-[#F7F8FC] rounded-t-sm overflow-hidden mx-px"
               style={{ height: 56 }}
             >
               <View
@@ -300,7 +300,7 @@ function WeeklyHeatmap({ days }: { days: DailyRate[] }) {
             const cellColor = future
               ? 'bg-neutral-50'
               : day.scheduled === 0
-                ? 'bg-[#F5F0FF]'
+                ? 'bg-[#F7F8FC]'
                 : day.pct >= 80
                   ? 'bg-accent-success'
                   : day.pct >= 50
@@ -385,7 +385,7 @@ export default function ReportsScreen() {
   if (!reportsAllowed) {
     const req = requiredTierFor('canAccessReports');
     return (
-      <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC]">
         <View className="px-5 pt-6 pb-4">
           <Text className="font-inter font-bold text-neutral-900" style={{ fontSize: 24 }}>
             Reports
@@ -416,7 +416,7 @@ export default function ReportsScreen() {
 
   if (!activeChild) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F5F0FF] items-center justify-center px-6">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC] items-center justify-center px-6">
         <Text className="font-inter text-neutral-500 text-center text-sm">
           Select a child profile from the Dashboard first.
         </Text>
@@ -426,7 +426,7 @@ export default function ReportsScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F5F0FF] items-center justify-center">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC] items-center justify-center">
         <ActivityIndicator size="large" color="#7C3AED" />
       </SafeAreaView>
     );
@@ -434,7 +434,7 @@ export default function ReportsScreen() {
 
   if (error || !data) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F5F0FF] items-center justify-center px-6">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC] items-center justify-center px-6">
         <Text className="font-inter text-neutral-500 text-center">
           Could not load reports. Pull to retry.
         </Text>
@@ -446,7 +446,7 @@ export default function ReportsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+    <SafeAreaView className="flex-1 bg-[#F7F8FC]">
       <View className="px-5 pt-6 pb-4">
         <Text className="font-inter font-bold text-neutral-900" style={{ fontSize: 24 }}>
           Reports

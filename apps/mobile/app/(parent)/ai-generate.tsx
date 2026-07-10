@@ -236,7 +236,7 @@ export default function AIGenerateScreen() {
   if (!aiAllowed) {
     const req = requiredTierFor('canUseAI');
     return (
-      <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC]">
         <View className="flex-row items-center px-4 pt-3 pb-2 border-b border-neutral-200 bg-white">
           <TouchableOpacity onPress={() => router.back()} accessibilityRole="button">
             <Text className="font-inter text-brand-primary text-sm font-semibold">‹ Back</Text>
@@ -507,7 +507,7 @@ export default function AIGenerateScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5F0FF' },
+  screen: { flex: 1, backgroundColor: '#F7F8FC' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   smallInput: {
-    backgroundColor: '#F5F0FF',
+    backgroundColor: '#F7F8FC',
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,

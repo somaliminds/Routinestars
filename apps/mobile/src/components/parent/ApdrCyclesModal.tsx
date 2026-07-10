@@ -440,7 +440,7 @@ export function ApdrCyclesModal({ visible, outcomeId, outcomeText, childId, onCl
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5F0FF' },
+  screen: { flex: 1, backgroundColor: '#F7F8FC' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   statusBadgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#FFFFFF' },
   cycleWindow: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#6B7280', marginTop: 6 },
   progressBox: {
-    backgroundColor: '#F5F0FF',
+    backgroundColor: '#F7F8FC',
     borderRadius: 8,
     padding: 8,
     marginTop: 8,

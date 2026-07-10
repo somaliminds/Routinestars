@@ -879,7 +879,7 @@ function OutcomeEditorModal({
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1, backgroundColor: '#F5F0FF' }}
+        style={{ flex: 1, backgroundColor: '#F7F8FC' }}
       >
         <View style={styles.modalHeader}>
           <TouchableOpacity onPress={onClose}>
@@ -1019,7 +1019,7 @@ function OutcomeEditorModal({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5F0FF' },
+  screen: { flex: 1, backgroundColor: '#F7F8FC' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1276,7 +1276,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 14,
   },
-  dueOk: { backgroundColor: '#F5F0FF', borderColor: '#EDE9FE' },
+  dueOk: { backgroundColor: '#F7F8FC', borderColor: '#EDE9FE' },
   dueSoon: { backgroundColor: '#FEF9C3', borderColor: '#FDE68A' },
   dueDue: { backgroundColor: '#FFEDD5', borderColor: '#FED7AA' },
   dueOverdue: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },

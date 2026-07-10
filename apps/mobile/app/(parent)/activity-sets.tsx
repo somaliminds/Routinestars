@@ -236,7 +236,7 @@ function StepEditorModal({
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC]">
         <View className="flex-row items-center justify-between px-5 pt-4 pb-3 border-b border-neutral-200 bg-white">
           <TouchableOpacity onPress={onClose} accessibilityRole="button">
             <Text className="font-inter text-neutral-500">Cancel</Text>
@@ -725,7 +725,7 @@ function ActivitySetModal({
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC]">
         {/* Header */}
         <View className="flex-row items-center justify-between px-5 pt-4 pb-3 border-b border-neutral-200 bg-white">
           <TouchableOpacity onPress={onClose} accessibilityRole="button">
@@ -789,7 +789,7 @@ function ActivitySetModal({
                       className={`rounded-xl px-3 py-2 border ${
                         category === cat
                           ? 'bg-brand-primary border-brand-primary'
-                          : 'bg-[#F5F0FF] border-neutral-200'
+                          : 'bg-[#F7F8FC] border-neutral-200'
                       }`}
                       onPress={() => setCategory(cat)}
                     >
@@ -827,7 +827,7 @@ function ActivitySetModal({
                   {item.set.requires_approval ? ' · Approval required' : ''}
                 </Text>
               </View>
-              <View className="bg-[#F5F0FF] rounded-lg px-2 py-1">
+              <View className="bg-[#F7F8FC] rounded-lg px-2 py-1">
                 <Text className="font-inter text-neutral-500 text-xs">Built-in</Text>
               </View>
             </View>
@@ -975,7 +975,7 @@ export default function ActivitySetsScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F5F0FF] items-center justify-center">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC] items-center justify-center">
         <ActivityIndicator size="large" color="#7C3AED" />
       </SafeAreaView>
     );
@@ -985,7 +985,7 @@ export default function ActivitySetsScreen() {
   const builtInSets = (items ?? []).filter((i) => !i.set.is_custom);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+    <SafeAreaView className="flex-1 bg-[#F7F8FC]">
       <View className="px-5 pt-6 pb-4">
         <Text className="font-inter font-bold text-neutral-900" style={{ fontSize: 24 }}>
           Activity Sets

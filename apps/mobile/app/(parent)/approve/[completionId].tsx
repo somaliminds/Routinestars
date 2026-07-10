@@ -237,7 +237,7 @@ export default function ApprovalDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F5F0FF] items-center justify-center">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC] items-center justify-center">
         <ActivityIndicator size="large" color="#7C3AED" />
       </SafeAreaView>
     );
@@ -245,7 +245,7 @@ export default function ApprovalDetailScreen() {
 
   if (error || !detail) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F5F0FF] items-center justify-center px-6">
+      <SafeAreaView className="flex-1 bg-[#F7F8FC] items-center justify-center px-6">
         <Text className="font-inter text-neutral-500 text-center">
           Could not load activity details.
         </Text>
@@ -260,7 +260,7 @@ export default function ApprovalDetailScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F5F0FF]">
+    <SafeAreaView className="flex-1 bg-[#F7F8FC]">
       {/* Header */}
       <View className="flex-row items-center px-5 pt-4 pb-3 border-b border-neutral-200">
         <TouchableOpacity
@@ -304,7 +304,7 @@ export default function ApprovalDetailScreen() {
           {/* Parent Gold Star — optional +5 bonus awarded at approval */}
           <TouchableOpacity
             className={`flex-row items-center rounded-xl px-4 py-3 ${
-              parentGoldStar ? 'bg-accent-star/20 border border-accent-star' : 'bg-[#F5F0FF]'
+              parentGoldStar ? 'bg-accent-star/20 border border-accent-star' : 'bg-[#F7F8FC]'
             }`}
             onPress={() => setParentGoldStar((v) => !v)}
             accessibilityLabel={
