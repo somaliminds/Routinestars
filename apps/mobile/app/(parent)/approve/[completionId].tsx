@@ -15,12 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { isSuspiciouslyFast } from '@/lib/fast-finish';
 import { useAuthStore } from '@/stores/auth.store';
 
 interface StepSummary {
   stepId: string;
   title: string;
   timeTakenSeconds: number;
+  expectedSeconds: number;
   orderIndex: number;
 }
 
@@ -83,7 +85,7 @@ async function fetchCompletionDetail(completionId: string): Promise<CompletionDe
     const stepIds = stepCompletions.map((s) => s.step_id);
     const { data: stepRows } = await supabase
       .from('steps')
-      .select('step_id, title, order_index')
+      .select('step_id, title, order_index, duration_seconds')
       .in('step_id', stepIds)
       .order('order_index');
 
@@ -94,6 +96,7 @@ async function fetchCompletionDetail(completionId: string): Promise<CompletionDe
           stepId: step.step_id,
           title: step.title,
           timeTakenSeconds: timeMap.get(step.step_id) ?? 0,
+          expectedSeconds: step.duration_seconds ?? 0,
           orderIndex: step.order_index,
         });
       }
@@ -131,6 +134,16 @@ function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+/**
+ * Fast-finish signal (anti-cheat layer 3) — same thresholds as the
+ * useStepSequencer escalation, via the shared @/lib/fast-finish module.
+ */
+function fastFinishInfo(steps: StepSummary[]): { actual: number; expected: number } | null {
+  const actual = steps.reduce((s, st) => s + st.timeTakenSeconds, 0);
+  const expected = steps.reduce((s, st) => s + st.expectedSeconds, 0);
+  return isSuspiciouslyFast(actual, expected) ? { actual, expected } : null;
 }
 
 export default function ApprovalDetailScreen() {
@@ -326,6 +339,25 @@ export default function ApprovalDetailScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Fast-finish notice — the step times add up to well under the
+            expected durations. Neutral, parent-facing only; the child never
+            sees this. The parent stays the judge (approve or ask for a redo). */}
+        {(() => {
+          const fast = fastFinishInfo(detail.steps);
+          if (!fast) return null;
+          return (
+            <View className="bg-amber-50 rounded-2xl p-4 mb-4 border border-amber-200">
+              <Text className="font-inter font-semibold text-amber-900 text-xs mb-1">
+                ⚡ Finished unusually fast
+              </Text>
+              <Text className="font-inter text-amber-900 text-sm leading-relaxed">
+                {detail.childName} finished in {formatTime(fast.actual)} — these steps usually take
+                about {formatTime(fast.expected)}. Worth a quick check before approving.
+              </Text>
+            </View>
+          );
+        })()}
 
         {/* Carer banner — only when this completion came from a non-child actor
             (school TA, grandparent, etc.). Shows who marked it done, where, and

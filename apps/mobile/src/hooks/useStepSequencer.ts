@@ -13,6 +13,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { enqueuePendingCompletion } from '@/lib/offline-db';
+import { isSuspiciouslyFast } from '@/lib/fast-finish';
 import type { StepRow } from '@/types/database';
 
 interface SequencerSet {
@@ -21,6 +22,12 @@ interface SequencerSet {
   iconEmoji: string;
   requiresApproval: boolean;
 }
+
+// Fast-finish escalation (anti-cheat layer 3): when a set that would normally
+// auto-approve is finished suspiciously fast, it is escalated to
+// AWAITING_APPROVAL instead — the child sees the ordinary "waiting for a
+// grown-up" screen (never an accusation), and the parent decides. Thresholds
+// live in @/lib/fast-finish (shared with the parent approval screen's notice).
 
 export interface StepSequencerState {
   isLoading: boolean;
@@ -56,6 +63,9 @@ export function useStepSequencer(
   const [starsEarned, setStarsEarned] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [newlyEarnedBadges, setNewlyEarnedBadges] = useState<string[]>([]);
+  // Set at completion time when a suspiciously fast no-approval run is
+  // escalated to the parent (fast-finish, layer 3).
+  const [escalatedToApproval, setEscalatedToApproval] = useState(false);
 
   // Refs so interval callbacks always see current values without re-subscribing
   const completionIdRef = useRef<string | null>(null);
@@ -237,7 +247,23 @@ export function useStepSequencer(
     setStarsEarned(newStarsEarned);
 
     if (isLastStep) {
-      const requiresApproval = setInfo?.requiresApproval ?? false;
+      const setRequiresApproval = setInfo?.requiresApproval ?? false;
+
+      // Fast-finish check over the steps measured THIS session (resume-safe:
+      // steps completed in an earlier session aren't in stepTimingsRef, so
+      // both sides of the comparison cover the same steps).
+      const durationByStepId = new Map(steps.map((s) => [s.step_id, s.duration_seconds]));
+      const measured = stepTimingsRef.current;
+      const expectedSecs = measured.reduce(
+        (sum, t) => sum + (durationByStepId.get(t.step_id) ?? 0),
+        0,
+      );
+      const actualSecs = measured.reduce((sum, t) => sum + t.time_taken_seconds, 0);
+      const suspiciouslyFast = isSuspiciouslyFast(actualSecs, expectedSecs);
+
+      const requiresApproval = setRequiresApproval || suspiciouslyFast;
+      if (!setRequiresApproval && suspiciouslyFast) setEscalatedToApproval(true);
+
       const newStatus = requiresApproval ? 'AWAITING_APPROVAL' : 'APPROVED';
       const completedAt = new Date().toISOString();
 
@@ -334,7 +360,9 @@ export function useStepSequencer(
     elapsedSeconds,
     starsEarned,
     isComplete,
-    requiresApproval: setInfo?.requiresApproval ?? false,
+    // Escalated fast-finish runs behave exactly like approval sets from the
+    // child's point of view — the ordinary "waiting for a grown-up" screen.
+    requiresApproval: (setInfo?.requiresApproval ?? false) || escalatedToApproval,
     setName: setInfo?.setName ?? '',
     iconEmoji: setInfo?.iconEmoji ?? '📋',
     newlyEarnedBadges,
