@@ -20,6 +20,7 @@ import { useSyncPending } from '@/hooks/useSyncPending';
 import { usePinGate } from '@/stores/pinGate.store';
 import { supabase } from '@/lib/supabase';
 import { initSentry, setSentryUser, Sentry } from '@/lib/sentry';
+import { deriveRoleFromBoot, type BootContext, type ResolvedRole } from '@/lib/boot-role';
 
 // Initialise Sentry as early as possible — before any user code runs.
 initSentry();
@@ -138,53 +139,19 @@ function AuthGuard() {
     [],
   );
 
-  type ResolvedRole = { role: 'parent' | 'child' | 'ta' | 'professional'; needsPinSetup: boolean };
-
-  // Apply the SAME role/PIN decision the legacy JS path made, but from the
-  // single get_boot_context() payload. TA wins over professional; both require
-  // the user to own no children of their own; PIN gate only applies to parents.
-  const deriveFromBoot = useCallback(
-    (ctx: {
-      role: string;
-      own_children: number;
-      has_ta_assignment: boolean;
-      has_active_consent: boolean;
-      needs_pin_setup: boolean;
-    }): ResolvedRole => {
-      const baseRole = ctx.role === 'child' ? 'child' : 'parent';
-      if (baseRole === 'parent') {
-        if (ctx.has_ta_assignment && ctx.own_children === 0) {
-          return { role: 'ta', needsPinSetup: false };
-        }
-        if (ctx.has_active_consent && ctx.own_children === 0) {
-          return { role: 'professional', needsPinSetup: false };
-        }
-        return { role: 'parent', needsPinSetup: ctx.needs_pin_setup };
-      }
-      return { role: 'child', needsPinSetup: false };
-    },
-    [],
-  );
-
   /**
    * Resolve role + PIN state. Fast path: one get_boot_context() round-trip
    * (migration 031). If that RPC is unavailable (pre-migration DB) or errors,
    * fall back to the proven multi-query detection so auth never breaks.
+   * The role/PIN decision itself lives in the pure, unit-tested
+   * deriveRoleFromBoot (src/lib/boot-role).
    */
   const resolveRoleAndPin = useCallback(
     async (userId: string, email: string | undefined): Promise<ResolvedRole> => {
       try {
         const { data, error } = await supabase.rpc('get_boot_context');
         if (!error && data) {
-          return deriveFromBoot(
-            data as {
-              role: string;
-              own_children: number;
-              has_ta_assignment: boolean;
-              has_active_consent: boolean;
-              needs_pin_setup: boolean;
-            },
-          );
+          return deriveRoleFromBoot(data as BootContext);
         }
       } catch {
         // fall through to the legacy sequential path
@@ -207,7 +174,7 @@ function AuthGuard() {
         needsPinSetup: profResolved === 'parent' ? await checkPinStatus(userId) : false,
       };
     },
-    [deriveFromBoot, detectTaRole, detectProfessionalRole, checkPinStatus],
+    [detectTaRole, detectProfessionalRole, checkPinStatus],
   );
 
   useEffect(() => {
