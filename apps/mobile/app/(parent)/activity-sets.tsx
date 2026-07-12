@@ -973,6 +973,79 @@ export default function ActivitySetsScreen() {
     void queryClient.invalidateQueries({ queryKey: ['activitySets', userId] });
   }, [queryClient, userId]);
 
+  // ── Duplicate & customise ──────────────────────────────────────────────────
+  // Built-in sets are shared rows and can't be edited directly (RLS). This
+  // clones one — set + all steps (pictograms included) — into a private custom
+  // copy the parent CAN edit, then opens the editor on it. Gated to Starter+
+  // client-side here and server-side by the custom-set quota trigger (035).
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const handleDuplicate = useCallback(
+    async (item: { set: ActivitySetRow; steps: StepRow[] }) => {
+      if (!userId || duplicatingId) return;
+      if (!canCreateCustom) {
+        Alert.alert(
+          'Upgrade to customise',
+          'Duplicating a built-in set into your own editable copy is available on Starter and above. Upgrade in Settings → Plan.',
+          [{ text: 'OK' }],
+        );
+        return;
+      }
+      setDuplicatingId(item.set.set_id);
+      try {
+        const { data: newSet, error: setErr } = await supabase
+          .from('activity_sets')
+          .insert({
+            set_name: `${item.set.set_name} (my version)`,
+            category: item.set.category,
+            icon_emoji: item.set.icon_emoji,
+            colour_theme: item.set.colour_theme,
+            total_duration_mins: item.set.total_duration_mins,
+            requires_approval: item.set.requires_approval,
+            is_custom: true,
+            created_by_parent_id: userId,
+          })
+          .select('*')
+          .single();
+        if (setErr || !newSet) throw setErr ?? new Error('Could not duplicate set');
+
+        let newSteps: StepRow[] = [];
+        if (item.steps.length > 0) {
+          const { data: inserted, error: stepsErr } = await supabase
+            .from('steps')
+            .insert(
+              item.steps.map((s) => ({
+                set_id: newSet.set_id,
+                order_index: s.order_index,
+                title: s.title,
+                instruction_text: s.instruction_text,
+                duration_seconds: s.duration_seconds,
+                reward_stars: s.reward_stars,
+                audio_url: s.audio_url,
+                illustration_url: s.illustration_url,
+              })),
+            )
+            .select('*');
+          if (stepsErr) throw stepsErr;
+          newSteps = ((inserted ?? []) as StepRow[]).sort((a, b) => a.order_index - b.order_index);
+        }
+
+        onSaved();
+        // Straight into the editor on the fresh copy.
+        setSelectedItem({ set: newSet as ActivitySetRow, steps: newSteps });
+      } catch (err) {
+        const quota = quotaMessageFor(err);
+        if (quota) {
+          Alert.alert(quota.title, quota.body);
+        } else {
+          Alert.alert('Could not duplicate', 'Something went wrong. Please try again.');
+        }
+      } finally {
+        setDuplicatingId(null);
+      }
+    },
+    [userId, canCreateCustom, duplicatingId, onSaved],
+  );
+
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-[#F7F8FC] items-center justify-center">
@@ -1101,6 +1174,23 @@ export default function ActivitySetsScreen() {
                 {item.set.requires_approval ? ' · Approval' : ''}
               </Text>
             </View>
+            {/* Duplicate into an editable custom copy (Starter+) */}
+            <TouchableOpacity
+              className="px-3 py-2 mr-1 rounded-xl bg-brand-light"
+              onPress={() => void handleDuplicate(item)}
+              disabled={duplicatingId !== null}
+              accessibilityRole="button"
+              accessibilityLabel={`Duplicate ${item.set.set_name} into an editable copy`}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            >
+              {duplicatingId === item.set.set_id ? (
+                <ActivityIndicator size="small" color="#7C3AED" />
+              ) : (
+                <Text className="font-inter font-semibold text-brand-primary text-xs">
+                  Duplicate
+                </Text>
+              )}
+            </TouchableOpacity>
             <Text className="font-inter text-neutral-400">›</Text>
           </TouchableOpacity>
         ))}
