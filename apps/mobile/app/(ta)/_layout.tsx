@@ -1,5 +1,7 @@
+import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { RouteErrorBoundary } from '@/components/ui/RouteErrorBoundary';
+import { MobileOnlyNotice } from '@/components/web/MobileOnlyNotice';
 
 /**
  * TA (School / Care Team) app layout.
@@ -13,6 +15,7 @@ import { RouteErrorBoundary } from '@/components/ui/RouteErrorBoundary';
  * group instead of taking down the whole app.
  */
 export default function TaLayout() {
+  if (Platform.OS === 'web') return <MobileOnlyNotice />;
   return (
     <RouteErrorBoundary tone="adult">
       <Stack screenOptions={{ headerShown: false }} />

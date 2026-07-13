@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/stores/auth.store';
@@ -7,6 +8,7 @@ import { useApprovalQueue } from '@/hooks/useApprovalQueue';
 import { useSubscriptionStore } from '@/stores/subscription.store';
 import { useResponsive } from '@/hooks/useResponsive';
 import { RouteErrorBoundary } from '@/components/ui/RouteErrorBoundary';
+import { MobileOnlyNotice } from '@/components/web/MobileOnlyNotice';
 
 /**
  * Parent app layout — Sprint 2.4
@@ -32,6 +34,10 @@ export default function ParentLayout() {
   useEffect(() => {
     if (userId) void fetchSubscription(userId);
   }, [userId, fetchSubscription]);
+
+  // Parent app is mobile-only on the web build (Option A ships the professional
+  // portal on web; the parent app needs native features).
+  if (Platform.OS === 'web') return <MobileOnlyNotice />;
 
   return (
     <RouteErrorBoundary tone="adult">
