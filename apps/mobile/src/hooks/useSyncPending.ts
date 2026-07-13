@@ -7,7 +7,7 @@
  * Called once from the root _layout.tsx after auth initialises.
  */
 import { useEffect, useRef } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import {
   getPendingCompletions,
@@ -99,6 +99,8 @@ export function useSyncPending(isAuthenticated: boolean): void {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    // No offline queue on web (the professional portal build) — skip entirely.
+    if (Platform.OS === 'web') return;
 
     // Flush on mount
     void tryFlush();

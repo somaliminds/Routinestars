@@ -3,10 +3,14 @@
  * app restarts so the child always hears the same voice they're used to.
  * Uses expo-secure-store (already a dependency) for persistence.
  */
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 
 const STORAGE_KEY = 'routinestars.voice_id';
+// SecureStore is native-only. The web build (professional portal) doesn't drive
+// child TTS, so skip native persistence there rather than hit an unavailable API.
+const isWeb = Platform.OS === 'web';
 
 interface VoiceState {
   voiceId: string | null;
@@ -22,6 +26,7 @@ export const useVoiceStore = create<VoiceState>((set) => ({
 
   setVoiceId: (id) => {
     set({ voiceId: id });
+    if (isWeb) return;
     void (async () => {
       try {
         if (id) await SecureStore.setItemAsync(STORAGE_KEY, id);
@@ -33,6 +38,10 @@ export const useVoiceStore = create<VoiceState>((set) => ({
   },
 
   hydrate: async () => {
+    if (isWeb) {
+      set({ isReady: true });
+      return;
+    }
     try {
       const stored = await SecureStore.getItemAsync(STORAGE_KEY);
       set({ voiceId: stored ?? null, isReady: true });

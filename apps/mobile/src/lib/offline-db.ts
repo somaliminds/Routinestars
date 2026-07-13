@@ -5,7 +5,9 @@
  *  - cached_schedules: today's schedule JSON for the child app
  *  - pending_completions: completions queued when network was unavailable
  *
- * Uses expo-sqlite (Expo SDK 51+ API).
+ * Uses expo-sqlite (Expo SDK 51+ API). NATIVE ONLY — on web, Metro resolves
+ * offline-db.web.ts instead (expo-sqlite is native-only and the offline queue
+ * is a child-tablet concern the professional web build never needs).
  */
 import * as SQLite from 'expo-sqlite';
 
@@ -98,7 +100,7 @@ export interface StepCompletionEntry {
   time_taken_seconds: number;
 }
 
-export async function enqueuePendingCompletion(params: {
+export interface EnqueueParams {
   scheduledSetId: string;
   childId: string;
   starsEarned: number;
@@ -107,7 +109,9 @@ export async function enqueuePendingCompletion(params: {
   setName: string;
   childName: string;
   stepCompletions: StepCompletionEntry[];
-}): Promise<void> {
+}
+
+export async function enqueuePendingCompletion(params: EnqueueParams): Promise<void> {
   const database = await getDb();
   await database.runAsync(
     `INSERT INTO pending_completions
