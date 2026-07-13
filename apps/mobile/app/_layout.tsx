@@ -21,9 +21,15 @@ import { usePinGate } from '@/stores/pinGate.store';
 import { supabase } from '@/lib/supabase';
 import { initSentry, setSentryUser, Sentry } from '@/lib/sentry';
 import { deriveRoleFromBoot, type BootContext, type ResolvedRole } from '@/lib/boot-role';
+import { initI18n, changeLanguage } from '@/i18n';
+import { useLanguageStore } from '@/stores/language.store';
 
 // Initialise Sentry as early as possible — before any user code runs.
 initSentry();
+
+// Initialise i18n synchronously with the device language so the first render
+// is already localised; the saved preference (if any) is applied on hydrate.
+initI18n(null);
 
 SplashScreen.preventAutoHideAsync();
 
@@ -329,9 +335,20 @@ function RootLayout() {
   const markRequireOnResume = usePinGate((s) => s.markRequireOnResume);
   useSyncPending(!!session);
 
+  const hydrateLanguage = useLanguageStore((s) => s.hydrate);
+
   useEffect(() => {
     void hydrateVoice();
   }, [hydrateVoice]);
+
+  // Apply the saved language preference on boot (i18n was already initialised
+  // with the device language synchronously above, so this only switches if the
+  // user has explicitly chosen a different one).
+  useEffect(() => {
+    void hydrateLanguage().then((saved) => {
+      if (saved) void changeLanguage(saved);
+    });
+  }, [hydrateLanguage]);
 
   // Sprint 5.3: when the app is backgrounded (any reason — notification
   // tray pull-down, app-switcher pop, screen-off), mark the PIN gate as

@@ -1,0 +1,33 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "done": "Done",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "upgrade": "Upgrade"
+  },
+  "settings": {
+    "title": "Settings",
+    "account": "Account",
+    "language": "Language",
+    "languageFollowDevice": "Use device language",
+    "signOut": "Sign Out",
+    "deleteAccount": "Delete my account"
+  },
+  "tabs": {
+    "dashboard": "Dashboard",
+    "schedule": "Schedule",
+    "activities": "Activities",
+    "reports": "Reports",
+    "settings": "Settings",
+    "plan": "Plan"
+  }
+}
