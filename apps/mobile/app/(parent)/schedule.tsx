@@ -11,7 +11,7 @@
  *
  * Spec: Section 5.2 — Weekly Schedule Builder
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   View,
@@ -219,6 +219,23 @@ function ScheduledSetRow({ item, onRemove }: { item: ScheduledSetDetail; onRemov
   );
 }
 
+// Suggest the next free start time — right after the last activity of the day
+// ends (rounded up to 5 min), or 08:00 for an empty day. Stops the modal
+// defaulting every add to 08:00 and colliding with the morning routine.
+function suggestNextStart(existingSets: ScheduledSetDetail[]): string {
+  if (existingSets.length === 0) return '08:00';
+  let maxEnd = 0;
+  for (const s of existingSets) {
+    const [h, m] = s.startTime.split(':').map(Number);
+    const end = (h ?? 0) * 60 + (m ?? 0) + s.durationMins;
+    if (end > maxEnd) maxEnd = end;
+  }
+  const slot = Math.min(Math.ceil(maxEnd / 5) * 5, 23 * 60 + 55); // cap at 23:55
+  const hh = String(Math.floor(slot / 60)).padStart(2, '0');
+  const mm = String(slot % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
 // ── Add Activity Modal ───────────────────────────────────────────────────────
 function AddActivityModal({
   visible,
@@ -239,6 +256,18 @@ function AddActivityModal({
   const [startTime, setStartTime] = useState('08:00');
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [conflictMsg, setConflictMsg] = useState('');
+
+  // Each time the modal opens, start from a clean slate with the next free
+  // slot pre-filled (based on the day's current activities).
+  useEffect(() => {
+    if (!visible) return;
+    setStartTime(suggestNextStart(existingSets));
+    setSelectedSet(null);
+    setRequiresApproval(false);
+    setConflictMsg('');
+    // Read existingSets only at open time — don't reset while the parent edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   const handleAdd = useCallback(() => {
     if (!selectedSet) return;
@@ -264,9 +293,6 @@ function AddActivityModal({
 
     setConflictMsg('');
     onAdd(selectedSet.set_id, startTime, requiresApproval || selectedSet.requires_approval);
-    setSelectedSet(null);
-    setStartTime('08:00');
-    setRequiresApproval(false);
   }, [selectedSet, startTime, requiresApproval, existingSets, onAdd]);
 
   return (
@@ -407,7 +433,11 @@ export default function ScheduleScreen() {
         },
         {
           onError: (err) => {
-            Alert.alert('Conflict Detected', err instanceof Error ? err.message : 'Time conflict');
+            const msg = err instanceof Error ? err.message : 'Could not add the activity.';
+            // Only call it a conflict when it actually is one — otherwise a real
+            // DB/permission error was being hidden behind "Conflict Detected".
+            const isConflict = /conflict|overlap/i.test(msg);
+            Alert.alert(isConflict ? 'Time conflict' : "Couldn't add activity", msg);
           },
           onSuccess: () => {
             setAddModalVisible(false);
