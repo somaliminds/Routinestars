@@ -27,8 +27,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { quotaMessageFor } from '@/lib/quota-errors';
+import { useLanguageStore } from '@/stores/language.store';
+import { SUPPORTED_LANGUAGES, RTL_LANGUAGES, changeLanguage } from '@/i18n';
 import { useAuthStore } from '@/stores/auth.store';
 import { useParentStore } from '@/stores/parent.store';
 import { useSubscriptionStore, canAddChild, canShareCareTeam } from '@/stores/subscription.store';
@@ -157,6 +160,32 @@ function SectionHeader({ title }: { title: string }) {
     >
       {title}
     </Text>
+  );
+}
+
+function LanguageRow({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="flex-row items-center px-4 py-3.5 border-b border-neutral-100"
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+    >
+      <Text
+        className={`flex-1 font-inter text-base ${selected ? 'text-brand-primary font-semibold' : 'text-neutral-900'}`}
+      >
+        {label}
+      </Text>
+      {selected && <Text className="text-brand-primary font-inter font-bold text-lg">✓</Text>}
+    </TouchableOpacity>
   );
 }
 
@@ -929,12 +958,34 @@ function CareTeamSection({
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function SettingsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const session = useAuthStore((s) => s.session);
   const signOut = useAuthStore((s) => s.signOut);
   const userId = session?.user.id ?? '';
   const { activeChild } = useParentStore();
   const subscription = useSubscriptionStore((s) => s.subscription);
   const qc = useQueryClient();
+
+  // Language preference. Switching an RTL language (Urdu/Arabic) needs a full
+  // app reload to flip layout direction, so we prompt for it.
+  const language = useLanguageStore((s) => s.language);
+  const setLanguage = useLanguageStore((s) => s.setLanguage);
+  const handleLanguageSelect = useCallback(
+    async (code: string | null) => {
+      if (code === language) return;
+      setLanguage(code);
+      const needsReload = await changeLanguage(code ?? 'en');
+      const willBeRtl = code ? RTL_LANGUAGES.has(code) : false;
+      if (needsReload) {
+        Alert.alert(
+          willBeRtl ? 'Restart to apply' : 'Restart to apply',
+          'Please fully close and reopen RoutineStars to finish switching the layout direction.',
+          [{ text: 'OK' }],
+        );
+      }
+    },
+    [language, setLanguage],
+  );
 
   const [childModal, setChildModal] = useState<{ visible: boolean; editing: ChildProfile | null }>({
     visible: false,
@@ -1136,8 +1187,26 @@ export default function SettingsScreen() {
           </>
         )}
 
+        {/* ── Language ── */}
+        <SectionHeader title={t('settings.language', 'Language')} />
+        <View className="bg-white rounded-2xl overflow-hidden shadow-sm mb-1">
+          <LanguageRow
+            label={t('settings.languageFollowDevice', 'Use device language')}
+            selected={language === null}
+            onPress={() => void handleLanguageSelect(null)}
+          />
+          {Object.entries(SUPPORTED_LANGUAGES).map(([code, name]) => (
+            <LanguageRow
+              key={code}
+              label={name}
+              selected={language === code}
+              onPress={() => void handleLanguageSelect(code)}
+            />
+          ))}
+        </View>
+
         {/* ── Sign out ── */}
-        <SectionHeader title="Account" />
+        <SectionHeader title={t('settings.account', 'Account')} />
         <TouchableOpacity
           onPress={() => {
             Alert.alert('Sign out', 'Are you sure you want to sign out?', [
