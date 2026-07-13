@@ -7,6 +7,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useApprovalQueue } from '@/hooks/useApprovalQueue';
 import { useSubscriptionStore } from '@/stores/subscription.store';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useTranslation } from 'react-i18next';
 import { RouteErrorBoundary } from '@/components/ui/RouteErrorBoundary';
 import { MobileOnlyNotice } from '@/components/web/MobileOnlyNotice';
 
@@ -16,6 +17,7 @@ import { MobileOnlyNotice } from '@/components/web/MobileOnlyNotice';
  * Registers for push notifications and shows approval badge count.
  */
 export default function ParentLayout() {
+  const { t } = useTranslation();
   const session = useAuthStore((s) => s.session);
   const userId = session?.user.id ?? null;
   const r = useResponsive();
@@ -80,7 +82,7 @@ export default function ParentLayout() {
         <Tabs.Screen
           name="dashboard"
           options={{
-            title: 'Dashboard',
+            title: t('tabs.dashboard', 'Dashboard'),
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="home-outline" size={size} color={color} />
             ),
@@ -90,7 +92,7 @@ export default function ParentLayout() {
         <Tabs.Screen
           name="schedule"
           options={{
-            title: 'Schedule',
+            title: t('tabs.schedule', 'Schedule'),
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="calendar-outline" size={size} color={color} />
             ),
@@ -99,7 +101,7 @@ export default function ParentLayout() {
         <Tabs.Screen
           name="activity-sets"
           options={{
-            title: 'Activities',
+            title: t('tabs.activities', 'Activities'),
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="list-outline" size={size} color={color} />
             ),
@@ -108,7 +110,7 @@ export default function ParentLayout() {
         <Tabs.Screen
           name="reports"
           options={{
-            title: 'Reports',
+            title: t('tabs.reports', 'Reports'),
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="bar-chart-outline" size={size} color={color} />
             ),
@@ -117,7 +119,7 @@ export default function ParentLayout() {
         <Tabs.Screen
           name="settings"
           options={{
-            title: 'Settings',
+            title: t('tabs.settings', 'Settings'),
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="settings-outline" size={size} color={color} />
             ),
@@ -126,7 +128,7 @@ export default function ParentLayout() {
         <Tabs.Screen
           name="subscription"
           options={{
-            title: 'Plan',
+            title: t('tabs.plan', 'Plan'),
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="diamond-outline" size={size} color={color} />
             ),
