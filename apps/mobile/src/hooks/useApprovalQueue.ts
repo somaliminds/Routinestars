@@ -4,7 +4,8 @@
  * Fetches all completions for a parent's children that are awaiting approval.
  * Used in the parent dashboard to show a badge count and the approval list.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
 export interface PendingApproval {
@@ -78,10 +79,31 @@ async function fetchPendingApprovals(parentId: string): Promise<PendingApproval[
 }
 
 export function useApprovalQueue(parentId: string | null) {
+  const queryClient = useQueryClient();
+
+  // Realtime: refresh the queue the instant a child's completion changes
+  // (finished → AWAITING_APPROVAL, or approved/redone elsewhere). RLS scopes
+  // the events to this parent's own children. The 30s poll below is the
+  // fallback if the socket drops.
+  useEffect(() => {
+    if (!parentId) return;
+    const channel = supabase
+      .channel(`approval-queue-${parentId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'completions' },
+        () => void queryClient.invalidateQueries({ queryKey: ['approvalQueue', parentId] }),
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [parentId, queryClient]);
+
   return useQuery({
     queryKey: ['approvalQueue', parentId],
     queryFn: () => fetchPendingApprovals(parentId!),
     enabled: !!parentId,
-    refetchInterval: 30_000, // Poll every 30s as backup to Realtime
+    refetchInterval: 30_000, // Poll every 30s as a fallback to Realtime
   });
 }

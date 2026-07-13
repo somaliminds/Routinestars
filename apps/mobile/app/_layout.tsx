@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
@@ -345,6 +345,13 @@ function RootLayout() {
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
+
+      // Bridge React Native's foreground state to TanStack Query. RN has no
+      // browser "focus" event, so without this refetchOnWindowFocus never
+      // fires — queries stay stale until a manual pull-to-refresh. Now,
+      // returning to the app refetches (e.g. a pending approval appears).
+      focusManager.setFocused(next === 'active');
+
       // Only flip the require flag on the active -> background transition.
       // Coming back to active uses the flag, doesn't set it.
       if (prev === 'active' && next !== 'active') {
