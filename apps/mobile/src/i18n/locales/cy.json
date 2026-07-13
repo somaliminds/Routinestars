@@ -1,0 +1,33 @@
+{
+  "common": {
+    "save": "Cadw",
+    "cancel": "Canslo",
+    "delete": "Dileu",
+    "done": "Wedi gorffen",
+    "back": "Yn ôl",
+    "next": "Nesaf",
+    "close": "Cau",
+    "loading": "Wrthi'n llwytho…",
+    "retry": "Rhowch gynnig arall",
+    "ok": "Iawn",
+    "yes": "Ie",
+    "no": "Na",
+    "upgrade": "Uwchraddio"
+  },
+  "settings": {
+    "title": "Gosodiadau",
+    "account": "Cyfrif",
+    "language": "Iaith",
+    "languageFollowDevice": "Defnyddio iaith y ddyfais",
+    "signOut": "Allgofnodi",
+    "deleteAccount": "Dileu fy nghyfrif"
+  },
+  "tabs": {
+    "dashboard": "Dangosfwrdd",
+    "schedule": "Amserlen",
+    "activities": "Gweithgareddau",
+    "reports": "Adroddiadau",
+    "settings": "Gosodiadau",
+    "plan": "Cynllun"
+  }
+}

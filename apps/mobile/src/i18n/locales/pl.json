@@ -1,0 +1,33 @@
+{
+  "common": {
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "delete": "Usuń",
+    "done": "Gotowe",
+    "back": "Wstecz",
+    "next": "Dalej",
+    "close": "Zamknij",
+    "loading": "Ładowanie…",
+    "retry": "Spróbuj ponownie",
+    "ok": "OK",
+    "yes": "Tak",
+    "no": "Nie",
+    "upgrade": "Ulepsz"
+  },
+  "settings": {
+    "title": "Ustawienia",
+    "account": "Konto",
+    "language": "Język",
+    "languageFollowDevice": "Użyj języka urządzenia",
+    "signOut": "Wyloguj się",
+    "deleteAccount": "Usuń moje konto"
+  },
+  "tabs": {
+    "dashboard": "Panel",
+    "schedule": "Harmonogram",
+    "activities": "Aktywności",
+    "reports": "Raporty",
+    "settings": "Ustawienia",
+    "plan": "Plan"
+  }
+}
