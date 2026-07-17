@@ -20,7 +20,14 @@
     "language": "Język",
     "languageFollowDevice": "Użyj języka urządzenia",
     "signOut": "Wyloguj się",
-    "deleteAccount": "Usuń moje konto"
+    "deleteAccount": "Usuń moje konto",
+    "childProfiles": "Profile dzieci",
+    "ehcpOutcomes": "Cele EHCP",
+    "changePin": "Zmień PIN",
+    "narrationVoice": "Głos narracji kroków",
+    "notifications": "Powiadomienia",
+    "aiFeatures": "Funkcje AI (eksperymentalne)",
+    "careTeam": "Zespół opiekuńczy — {{name}}"
   },
   "tabs": {
     "dashboard": "Panel",

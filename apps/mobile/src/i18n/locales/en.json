@@ -20,7 +20,14 @@
     "language": "Language",
     "languageFollowDevice": "Use device language",
     "signOut": "Sign Out",
-    "deleteAccount": "Delete my account"
+    "deleteAccount": "Delete my account",
+    "childProfiles": "Child Profiles",
+    "ehcpOutcomes": "EHCP Outcomes",
+    "changePin": "Change PIN",
+    "narrationVoice": "Step Narration Voice",
+    "notifications": "Notifications",
+    "aiFeatures": "AI Features (Experimental)",
+    "careTeam": "Care Team — {{name}}"
   },
   "tabs": {
     "dashboard": "Dashboard",

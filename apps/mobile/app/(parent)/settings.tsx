@@ -1080,7 +1080,7 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* ── Child Profiles ── */}
-        <SectionHeader title="Child Profiles" />
+        <SectionHeader title={t('settings.childProfiles', 'Child Profiles')} />
         {childrenLoading ? (
           <ActivityIndicator color="#7C3AED" />
         ) : (
@@ -1117,7 +1117,7 @@ export default function SettingsScreen() {
         )}
 
         {/* ── EHCP Outcomes ── */}
-        <SectionHeader title="EHCP Outcomes" />
+        <SectionHeader title={t('settings.ehcpOutcomes', 'EHCP Outcomes')} />
         <TouchableOpacity
           className="bg-white rounded-2xl px-4 py-4 mb-2 shadow-sm flex-row items-center"
           onPress={() => router.push('/(parent)/ehcp')}
@@ -1139,28 +1139,32 @@ export default function SettingsScreen() {
         </TouchableOpacity>
 
         {/* ── PIN Change ── */}
-        <SectionHeader title="Change PIN" />
+        <SectionHeader title={t('settings.changePin', 'Change PIN')} />
         <PinChangeSection userId={userId} />
 
         {/* ── Voice ── */}
-        <SectionHeader title="Step Narration Voice" />
+        <SectionHeader title={t('settings.narrationVoice', 'Step Narration Voice')} />
         <Text className="font-inter text-neutral-500 text-xs mb-3 px-1">
           Choose which voice reads the steps aloud. Tap any voice to hear a preview.
         </Text>
         <VoiceSection />
 
         {/* ── Notifications ── */}
-        <SectionHeader title="Notifications" />
+        <SectionHeader title={t('settings.notifications', 'Notifications')} />
         <NotificationsSection userId={userId} />
 
         {/* ── AI features (experimental) ── */}
-        <SectionHeader title="AI Features (Experimental)" />
+        <SectionHeader title={t('settings.aiFeatures', 'AI Features (Experimental)')} />
         <AIFeaturesSection userId={userId} />
 
         {/* ── Care Team ── */}
         {activeChild && (
           <>
-            <SectionHeader title={`Care Team — ${activeChild.child_name}`} />
+            <SectionHeader
+              title={t('settings.careTeam', 'Care Team — {{name}}', {
+                name: activeChild.child_name,
+              })}
+            />
             {canShareCareTeam(subscription) ? (
               <>
                 <Text className="font-inter text-neutral-500 text-xs mb-3 px-1">
@@ -1222,7 +1226,9 @@ export default function SettingsScreen() {
           }}
           className="bg-white rounded-2xl py-4 items-center shadow-sm"
         >
-          <Text className="font-inter font-semibold text-accent-danger text-sm">Sign Out</Text>
+          <Text className="font-inter font-semibold text-accent-danger text-sm">
+            {t('settings.signOut', 'Sign Out')}
+          </Text>
         </TouchableOpacity>
 
         {/* ── Delete account (UK GDPR erasure) ── */}
@@ -1271,7 +1277,9 @@ export default function SettingsScreen() {
           accessibilityLabel="Delete my account and all data"
           accessibilityRole="button"
         >
-          <Text className="font-inter text-neutral-500 text-xs underline">Delete my account</Text>
+          <Text className="font-inter text-neutral-500 text-xs underline">
+            {t('settings.deleteAccount', 'Delete my account')}
+          </Text>
         </TouchableOpacity>
 
         {/* Sentry test — dev only. Strip from production by checking __DEV__. */}

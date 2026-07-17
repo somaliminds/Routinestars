@@ -20,7 +20,14 @@
     "language": "Iaith",
     "languageFollowDevice": "Defnyddio iaith y ddyfais",
     "signOut": "Allgofnodi",
-    "deleteAccount": "Dileu fy nghyfrif"
+    "deleteAccount": "Dileu fy nghyfrif",
+    "childProfiles": "Proffiliau Plant",
+    "ehcpOutcomes": "Canlyniadau EHCP",
+    "changePin": "Newid PIN",
+    "narrationVoice": "Llais Adrodd Camau",
+    "notifications": "Hysbysiadau",
+    "aiFeatures": "Nodweddion AI (Arbrofol)",
+    "careTeam": "Tîm Gofal — {{name}}"
   },
   "tabs": {
     "dashboard": "Dangosfwrdd",
