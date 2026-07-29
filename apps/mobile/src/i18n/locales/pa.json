@@ -1,0 +1,40 @@
+{
+  "common": {
+    "save": "ਸੰਭਾਲੋ",
+    "cancel": "ਰੱਦ ਕਰੋ",
+    "delete": "ਮਿਟਾਓ",
+    "done": "ਹੋ ਗਿਆ",
+    "back": "ਪਿੱਛੇ",
+    "next": "ਅੱਗੇ",
+    "close": "ਬੰਦ ਕਰੋ",
+    "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+    "retry": "ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
+    "ok": "ਠੀਕ ਹੈ",
+    "yes": "ਹਾਂ",
+    "no": "ਨਹੀਂ",
+    "upgrade": "ਅੱਪਗ੍ਰੇਡ ਕਰੋ"
+  },
+  "settings": {
+    "title": "ਸੈਟਿੰਗਾਂ",
+    "account": "ਖਾਤਾ",
+    "language": "ਭਾਸ਼ਾ",
+    "languageFollowDevice": "ਡਿਵਾਈਸ ਦੀ ਭਾਸ਼ਾ ਵਰਤੋ",
+    "signOut": "ਸਾਈਨ ਆਊਟ",
+    "deleteAccount": "ਮੇਰਾ ਖਾਤਾ ਮਿਟਾਓ",
+    "childProfiles": "ਬੱਚਿਆਂ ਦੇ ਪ੍ਰੋਫਾਈਲ",
+    "ehcpOutcomes": "EHCP ਨਤੀਜੇ",
+    "changePin": "PIN ਬਦਲੋ",
+    "narrationVoice": "ਕਦਮ ਸੁਣਾਉਣ ਵਾਲੀ ਆਵਾਜ਼",
+    "notifications": "ਸੂਚਨਾਵਾਂ",
+    "aiFeatures": "AI ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ (ਪ੍ਰਯੋਗਾਤਮਕ)",
+    "careTeam": "ਦੇਖਭਾਲ ਟੀਮ — {{name}}"
+  },
+  "tabs": {
+    "dashboard": "ਡੈਸ਼ਬੋਰਡ",
+    "schedule": "ਸਮਾਂ-ਸਾਰਣੀ",
+    "activities": "ਗਤੀਵਿਧੀਆਂ",
+    "reports": "ਰਿਪੋਰਟਾਂ",
+    "settings": "ਸੈਟਿੰਗਾਂ",
+    "plan": "ਯੋਜਨਾ"
+  }
+}

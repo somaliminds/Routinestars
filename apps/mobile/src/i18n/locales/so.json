@@ -1,0 +1,40 @@
+{
+  "common": {
+    "save": "Kaydi",
+    "cancel": "Jooji",
+    "delete": "Tirtir",
+    "done": "Diyaar",
+    "back": "Dib u noqo",
+    "next": "Xiga",
+    "close": "Xir",
+    "loading": "Waa soo raraya…",
+    "retry": "Isku day mar kale",
+    "ok": "Waa hagaag",
+    "yes": "Haa",
+    "no": "Maya",
+    "upgrade": "Kor u qaad"
+  },
+  "settings": {
+    "title": "Dejinta",
+    "account": "Akoonka",
+    "language": "Luqadda",
+    "languageFollowDevice": "Isticmaal luqadda qalabka",
+    "signOut": "Ka bax",
+    "deleteAccount": "Tirtir akoonkayga",
+    "childProfiles": "Profile-yada Carruurta",
+    "ehcpOutcomes": "Natiijooyinka EHCP",
+    "changePin": "Bedel PIN-ka",
+    "narrationVoice": "Codka Akhrinta Tallaabooyinka",
+    "notifications": "Ogeysiisyada",
+    "aiFeatures": "Sifooyinka AI (Tijaabo ah)",
+    "careTeam": "Kooxda Daryeelka — {{name}}"
+  },
+  "tabs": {
+    "dashboard": "Bogga Hore",
+    "schedule": "Jadwalka",
+    "activities": "Hawlaha",
+    "reports": "Warbixinnada",
+    "settings": "Dejinta",
+    "plan": "Qorshaha"
+  }
+}

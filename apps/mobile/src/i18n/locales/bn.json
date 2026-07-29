@@ -1,0 +1,40 @@
+{
+  "common": {
+    "save": "সংরক্ষণ করুন",
+    "cancel": "বাতিল করুন",
+    "delete": "মুছুন",
+    "done": "সম্পন্ন",
+    "back": "পিছনে",
+    "next": "পরবর্তী",
+    "close": "বন্ধ করুন",
+    "loading": "লোড হচ্ছে…",
+    "retry": "আবার চেষ্টা করুন",
+    "ok": "ঠিক আছে",
+    "yes": "হ্যাঁ",
+    "no": "না",
+    "upgrade": "আপগ্রেড করুন"
+  },
+  "settings": {
+    "title": "সেটিংস",
+    "account": "অ্যাকাউন্ট",
+    "language": "ভাষা",
+    "languageFollowDevice": "ডিভাইসের ভাষা ব্যবহার করুন",
+    "signOut": "সাইন আউট",
+    "deleteAccount": "আমার অ্যাকাউন্ট মুছুন",
+    "childProfiles": "শিশুদের প্রোফাইল",
+    "ehcpOutcomes": "EHCP ফলাফল",
+    "changePin": "PIN পরিবর্তন করুন",
+    "narrationVoice": "ধাপ বর্ণনার কণ্ঠস্বর",
+    "notifications": "বিজ্ঞপ্তি",
+    "aiFeatures": "AI বৈশিষ্ট্য (পরীক্ষামূলক)",
+    "careTeam": "কেয়ার টিম — {{name}}"
+  },
+  "tabs": {
+    "dashboard": "ড্যাশবোর্ড",
+    "schedule": "সময়সূচী",
+    "activities": "কার্যক্রম",
+    "reports": "রিপোর্ট",
+    "settings": "সেটিংস",
+    "plan": "পরিকল্পনা"
+  }
+}

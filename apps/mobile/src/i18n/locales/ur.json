@@ -1,0 +1,40 @@
+{
+  "common": {
+    "save": "محفوظ کریں",
+    "cancel": "منسوخ کریں",
+    "delete": "حذف کریں",
+    "done": "ہو گیا",
+    "back": "واپس",
+    "next": "اگلا",
+    "close": "بند کریں",
+    "loading": "لوڈ ہو رہا ہے…",
+    "retry": "دوبارہ کوشش کریں",
+    "ok": "ٹھیک ہے",
+    "yes": "ہاں",
+    "no": "نہیں",
+    "upgrade": "اپ گریڈ کریں"
+  },
+  "settings": {
+    "title": "ترتیبات",
+    "account": "اکاؤنٹ",
+    "language": "زبان",
+    "languageFollowDevice": "آلے کی زبان استعمال کریں",
+    "signOut": "سائن آؤٹ",
+    "deleteAccount": "میرا اکاؤنٹ حذف کریں",
+    "childProfiles": "بچوں کے پروفائلز",
+    "ehcpOutcomes": "EHCP نتائج",
+    "changePin": "PIN تبدیل کریں",
+    "narrationVoice": "مراحل بیان کرنے والی آواز",
+    "notifications": "اطلاعات",
+    "aiFeatures": "مصنوعی ذہانت کی خصوصیات (تجرباتی)",
+    "careTeam": "نگہداشت ٹیم — {{name}}"
+  },
+  "tabs": {
+    "dashboard": "ڈیش بورڈ",
+    "schedule": "شیڈول",
+    "activities": "سرگرمیاں",
+    "reports": "رپورٹس",
+    "settings": "ترتیبات",
+    "plan": "پلان"
+  }
+}

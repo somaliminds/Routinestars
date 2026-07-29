@@ -1,0 +1,40 @@
+{
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "done": "تم",
+    "back": "رجوع",
+    "next": "التالي",
+    "close": "إغلاق",
+    "loading": "جارٍ التحميل…",
+    "retry": "حاول مرة أخرى",
+    "ok": "حسنًا",
+    "yes": "نعم",
+    "no": "لا",
+    "upgrade": "ترقية"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "account": "الحساب",
+    "language": "اللغة",
+    "languageFollowDevice": "استخدام لغة الجهاز",
+    "signOut": "تسجيل الخروج",
+    "deleteAccount": "حذف حسابي",
+    "childProfiles": "ملفات الأطفال",
+    "ehcpOutcomes": "نتائج EHCP",
+    "changePin": "تغيير رمز PIN",
+    "narrationVoice": "صوت سرد الخطوات",
+    "notifications": "الإشعارات",
+    "aiFeatures": "ميزات الذكاء الاصطناعي (تجريبية)",
+    "careTeam": "فريق الرعاية — {{name}}"
+  },
+  "tabs": {
+    "dashboard": "لوحة التحكم",
+    "schedule": "الجدول",
+    "activities": "الأنشطة",
+    "reports": "التقارير",
+    "settings": "الإعدادات",
+    "plan": "الخطة"
+  }
+}
