@@ -4,6 +4,8 @@
  * critical logic is pure and unit-tested.
  *
  * Rules (must match the legacy multi-query detection exactly):
+ *   - admin membership wins over everything → admin panel (no PIN gate; MFA is
+ *     enforced separately at the DB and by the admin MFA gate).
  *   - users.role = 'child' → child (no PIN gate).
  *   - Otherwise a 'parent' base role may resolve to:
  *       · 'ta'           — has an accepted school-TA assignment AND owns no
@@ -13,7 +15,7 @@
  *   - Only real parents ever see the PIN setup gate.
  */
 
-export type BootRole = 'parent' | 'child' | 'ta' | 'professional';
+export type BootRole = 'parent' | 'child' | 'ta' | 'professional' | 'admin';
 
 export interface BootContext {
   role: string;
@@ -21,6 +23,7 @@ export interface BootContext {
   has_ta_assignment: boolean;
   has_active_consent: boolean;
   needs_pin_setup: boolean;
+  is_admin_member?: boolean;
 }
 
 export interface ResolvedRole {
@@ -29,6 +32,10 @@ export interface ResolvedRole {
 }
 
 export function deriveRoleFromBoot(ctx: BootContext): ResolvedRole {
+  // Admin membership takes precedence over every other role — an admin lands in
+  // the panel. (Use a separate non-admin account to test the parent/child apps.)
+  if (ctx.is_admin_member) return { role: 'admin', needsPinSetup: false };
+
   const baseRole = ctx.role === 'child' ? 'child' : 'parent';
   if (baseRole === 'parent') {
     if (ctx.has_ta_assignment && ctx.own_children === 0) {

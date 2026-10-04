@@ -118,7 +118,7 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
         </Text>
         <Text style={styles.body}>
           {mode === 'enrol'
-            ? 'Professional accounts must use an authenticator app. Scan this QR code (or enter the key) in Google Authenticator, Authy, or similar, then enter the 6-digit code.'
+            ? 'This account must use an authenticator app. Scan this QR code (or enter the key) in Google Authenticator, Authy, or similar, then enter the 6-digit code.'
             : 'Enter the current 6-digit code from your authenticator app to continue.'}
         </Text>
 

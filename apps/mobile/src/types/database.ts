@@ -758,6 +758,58 @@ export type Database = {
         };
         Relationships: [];
       };
+      admin_users: {
+        Row: {
+          user_id: string;
+          admin_role: 'owner' | 'support';
+          granted_at: string;
+          granted_by: string | null;
+        };
+        Insert: {
+          user_id: string;
+          admin_role?: 'owner' | 'support';
+          granted_by?: string | null;
+        };
+        Update: { admin_role?: 'owner' | 'support' };
+        Relationships: [];
+      };
+      admin_audit_log: {
+        Row: {
+          event_id: string;
+          occurred_at: string;
+          admin_id: string;
+          action: string;
+          target_type: string | null;
+          target_id: string | null;
+          detail: Json | null;
+        };
+        Insert: {
+          admin_id: string;
+          action: string;
+          target_type?: string | null;
+          target_id?: string | null;
+          detail?: Json | null;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      app_config: {
+        Row: {
+          key: string;
+          value: Json;
+          description: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          key: string;
+          value: Json;
+          description?: string | null;
+          updated_by?: string | null;
+        };
+        Update: { value?: Json; updated_by?: string | null; updated_at?: string };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -781,7 +833,12 @@ export type Database = {
           has_ta_assignment: boolean;
           has_active_consent: boolean;
           needs_pin_setup: boolean;
+          is_admin_member: boolean;
         };
+      };
+      admin_overview_metrics: {
+        Args: Record<string, never>;
+        Returns: Json;
       };
       get_completion_rate_30d: {
         Args: { p_child_id: string };

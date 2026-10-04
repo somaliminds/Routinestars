@@ -46,7 +46,9 @@ function AuthGuard() {
   const router = useRouter();
   const segments = useSegments();
   const { session, isLoading } = useAuthStore();
-  const [role, setRole] = useState<'parent' | 'child' | 'ta' | 'professional' | null>(null);
+  const [role, setRole] = useState<'parent' | 'child' | 'ta' | 'professional' | 'admin' | null>(
+    null,
+  );
   const [roleLoading, setRoleLoading] = useState(false);
   /** True when this parent has the placeholder PIN and must complete setup-pin */
   const [needsPinSetup, setNeedsPinSetup] = useState<boolean | null>(null);
@@ -162,6 +164,14 @@ function AuthGuard() {
       } catch {
         // fall through to the legacy sequential path
       }
+
+      // Admin membership wins (self-read policy allows this pre-MFA).
+      const { data: adminRow } = await supabase
+        .from('admin_users')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (adminRow) return { role: 'admin', needsPinSetup: false };
 
       const { data: userRow } = await supabase
         .from('users')
@@ -286,12 +296,14 @@ function AuthGuard() {
       return;
     }
 
-    // Professional portal home — not yet in the typed-routes generated types.
+    // Group homes not yet in the typed-routes generated types.
     const professionalHome = '/(professional)/children' as never;
+    const adminHome = '/(admin)/dashboard' as never;
     const group0 = segments[0] as string | undefined;
 
     if (inAuthGroup && !onWhitelistedAuthRoute) {
-      if (role === 'parent') router.replace('/(parent)/dashboard');
+      if (role === 'admin') router.replace(adminHome);
+      else if (role === 'parent') router.replace('/(parent)/dashboard');
       else if (role === 'ta') router.replace('/(ta)/today');
       else if (role === 'professional') router.replace(professionalHome);
       else router.replace('/(child)/select-profile');
@@ -300,6 +312,7 @@ function AuthGuard() {
 
     // Cross-role guards: keep each role in its own group.
     const inProfessionalGroup = group0 === '(professional)';
+    const inAdminGroup = group0 === '(admin)';
     if (role === 'child' && inParentGroup) router.replace('/(child)/select-profile');
     if (role === 'ta' && inParentGroup) router.replace('/(ta)/today');
     if (role === 'ta' && group0 === '(child)') router.replace('/(ta)/today');
@@ -308,8 +321,21 @@ function AuthGuard() {
     if (role === 'professional' && (inParentGroup || group0 === '(child)' || group0 === '(ta)'))
       router.replace(professionalHome);
     if (role !== 'professional' && inProfessionalGroup) {
+      if (role === 'admin') router.replace(adminHome);
+      else if (role === 'parent') router.replace('/(parent)/dashboard');
+      else if (role === 'ta') router.replace('/(ta)/today');
+      else router.replace('/(child)/select-profile');
+    }
+    // Admins stay in the admin group; everyone else is kept out of it.
+    if (
+      role === 'admin' &&
+      (inParentGroup || group0 === '(child)' || group0 === '(ta)' || inProfessionalGroup)
+    )
+      router.replace(adminHome);
+    if (role !== 'admin' && inAdminGroup) {
       if (role === 'parent') router.replace('/(parent)/dashboard');
       else if (role === 'ta') router.replace('/(ta)/today');
+      else if (role === 'professional') router.replace(professionalHome);
       else router.replace('/(child)/select-profile');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -421,6 +447,7 @@ function RootLayout() {
           <Stack.Screen name="(parent)" />
           <Stack.Screen name="(ta)" />
           <Stack.Screen name="(professional)" />
+          <Stack.Screen name="(admin)" />
           <Stack.Screen name="subscription/success" />
           <Stack.Screen name="subscription/cancel" />
         </Stack>

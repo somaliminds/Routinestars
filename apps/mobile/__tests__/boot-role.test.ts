@@ -12,6 +12,7 @@ function ctx(p: Partial<BootContext>): BootContext {
     has_ta_assignment: false,
     has_active_consent: false,
     needs_pin_setup: false,
+    is_admin_member: false,
     ...p,
   };
 }
@@ -60,6 +61,26 @@ describe('deriveRoleFromBoot', () => {
     expect(deriveRoleFromBoot(ctx({ own_children: 1, has_active_consent: true })).role).toBe(
       'parent',
     );
+  });
+
+  it('routes an admin to the admin panel, no PIN gate', () => {
+    expect(deriveRoleFromBoot(ctx({ is_admin_member: true, needs_pin_setup: true }))).toEqual({
+      role: 'admin',
+      needsPinSetup: false,
+    });
+  });
+
+  it('admin membership wins over every other signal', () => {
+    expect(
+      deriveRoleFromBoot(
+        ctx({
+          is_admin_member: true,
+          own_children: 3,
+          has_ta_assignment: true,
+          has_active_consent: true,
+        }),
+      ).role,
+    ).toBe('admin');
   });
 
   it('never puts a TA or professional behind the PIN gate', () => {

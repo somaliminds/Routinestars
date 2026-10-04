@@ -1,0 +1,88 @@
+/**
+ * admin.ts — client helpers for the internal admin panel.
+ *
+ * Privacy boundary: nothing here can read an individual child's
+ * special-category data. Metrics come from the admin_overview_metrics RPC
+ * (aggregate counts only); operational reads/writes go through RLS policies
+ * gated by is_admin() (which requires aal2 / MFA). Every mutating action is
+ * written to admin_audit_log.
+ */
+import { supabase } from './supabase';
+import type { Database, Json } from '@/types/database';
+
+export type AdminUserRow = Database['public']['Tables']['admin_users']['Row'];
+export type AppConfigRow = Database['public']['Tables']['app_config']['Row'];
+
+export interface OverviewMetrics {
+  users_total: number;
+  parents_total: number;
+  children_total: number;
+  signups_30d: number;
+  subs_by_plan: Record<string, number>;
+  subs_past_due: number;
+  subs_canceled_30d: number;
+  consents_active: number;
+  activity_sets_builtin: number;
+  activity_sets_custom: number;
+  completions_7d: number;
+}
+
+/** Is the signed-in user an admin? (self-read policy; works pre-MFA.) */
+export async function isAdminMember(): Promise<boolean> {
+  const { data } = await supabase.from('admin_users').select('user_id').maybeSingle();
+  return !!data;
+}
+
+/** Aggregate dashboard metrics (RPC enforces is_admin() + aal2). */
+export async function fetchOverviewMetrics(): Promise<OverviewMetrics | null> {
+  const { data, error } = await supabase.rpc('admin_overview_metrics');
+  if (error || !data) return null;
+  return data as unknown as OverviewMetrics;
+}
+
+/** Append an admin action to the audit trail (best-effort, never throws). */
+export async function logAdminAction(
+  adminId: string,
+  action: string,
+  target?: { type?: string; id?: string; detail?: Json },
+): Promise<void> {
+  try {
+    await supabase.from('admin_audit_log').insert({
+      admin_id: adminId,
+      action,
+      target_type: target?.type ?? null,
+      target_id: target?.id ?? null,
+      detail: target?.detail ?? null,
+    });
+  } catch (e) {
+    console.warn('[admin] audit insert failed:', e);
+  }
+}
+
+// ── Feature flags / config ───────────────────────────────────────────────────
+
+export async function fetchConfig(): Promise<AppConfigRow[]> {
+  const { data } = await supabase.from('app_config').select('*').order('key');
+  return data ?? [];
+}
+
+/** Set a config flag + audit it. */
+export async function setConfig(
+  adminId: string,
+  key: string,
+  value: Json,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('app_config')
+    .update({ value, updated_by: adminId, updated_at: new Date().toISOString() })
+    .eq('key', key);
+  if (error) return { error: error.message };
+  await logAdminAction(adminId, 'SET_FLAG', { type: 'config', id: key, detail: value });
+  return { error: null };
+}
+
+/** Read a single flag value with a typed fallback (used app-wide, not just admin). */
+export async function getFlag<T extends Json>(key: string, fallback: T): Promise<T> {
+  const { data } = await supabase.from('app_config').select('value').eq('key', key).maybeSingle();
+  return (data?.value as T | undefined) ?? fallback;
+}
