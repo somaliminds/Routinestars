@@ -13,13 +13,13 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { lookupUser, setUserPlan, deleteUserAccount, type AdminUserResult } from '@/lib/admin';
+import { confirmAction, notify } from '@/lib/ui-dialogs';
 
 const PLANS = ['FREE', 'STARTER', 'FAMILY', 'SCHOOL'] as const;
 
@@ -32,7 +32,7 @@ export default function AdminUsers() {
 
   const search = useCallback(async () => {
     if (!email.includes('@')) {
-      Alert.alert('Enter an email', "Type the account's email address to look it up.");
+      notify('Enter an email', "Type the account's email address to look it up.");
       return;
     }
     setLoading(true);
@@ -40,7 +40,7 @@ export default function AdminUsers() {
     try {
       setResult(await lookupUser(email));
     } catch (e) {
-      Alert.alert('Lookup failed', e instanceof Error ? e.message : 'Unknown error');
+      notify('Lookup failed', e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setLoading(false);
     }
@@ -49,59 +49,47 @@ export default function AdminUsers() {
   const u = result?.user;
 
   const applyPlan = useCallback(
-    (plan: string) => {
+    async (plan: string) => {
       if (!u) return;
-      Alert.alert('Change plan', `Set ${u.email} to ${plan}? This overrides their subscription.`, [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: `Set ${plan}`,
-          onPress: () => {
-            void (async () => {
-              setBusy(true);
-              try {
-                await setUserPlan(u.id, plan, plan === 'FREE' ? 'canceled' : 'active');
-                setResult(await lookupUser(email)); // refresh
-              } catch (e) {
-                Alert.alert('Failed', e instanceof Error ? e.message : 'Unknown error');
-              } finally {
-                setBusy(false);
-              }
-            })();
-          },
-        },
-      ]);
+      const ok = await confirmAction({
+        title: 'Change plan',
+        message: `Set ${u.email} to ${plan}? This overrides their subscription.`,
+        confirmLabel: `Set ${plan}`,
+      });
+      if (!ok) return;
+      setBusy(true);
+      try {
+        await setUserPlan(u.id, plan, plan === 'FREE' ? 'canceled' : 'active');
+        setResult(await lookupUser(email)); // refresh
+      } catch (e) {
+        notify('Failed', e instanceof Error ? e.message : 'Unknown error');
+      } finally {
+        setBusy(false);
+      }
     },
     [u, email],
   );
 
-  const removeUser = useCallback(() => {
+  const removeUser = useCallback(async () => {
     if (!u) return;
-    Alert.alert(
-      'Delete account',
-      `Permanently delete ${u.email} and ALL their data (every child profile, routine, report)? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete permanently',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              setBusy(true);
-              try {
-                await deleteUserAccount(u.id);
-                setResult(null);
-                setEmail('');
-                Alert.alert('Deleted', 'The account and all its data have been removed.');
-              } catch (e) {
-                Alert.alert('Failed', e instanceof Error ? e.message : 'Unknown error');
-              } finally {
-                setBusy(false);
-              }
-            })();
-          },
-        },
-      ],
-    );
+    const ok = await confirmAction({
+      title: 'Delete account',
+      message: `Permanently delete ${u.email} and ALL their data (every child profile, routine, report)? This cannot be undone.`,
+      confirmLabel: 'Delete permanently',
+      destructive: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await deleteUserAccount(u.id);
+      setResult(null);
+      setEmail('');
+      notify('Deleted', 'The account and all its data have been removed.');
+    } catch (e) {
+      notify('Failed', e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setBusy(false);
+    }
   }, [u]);
 
   return (
@@ -195,7 +183,7 @@ export default function AdminUsers() {
                     <TouchableOpacity
                       key={p}
                       style={[styles.chip, current && styles.chipOn]}
-                      onPress={() => applyPlan(p)}
+                      onPress={() => void applyPlan(p)}
                       disabled={busy}
                     >
                       <Text style={[styles.chipText, current && styles.chipTextOn]}>{p}</Text>
@@ -205,7 +193,11 @@ export default function AdminUsers() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.deleteBtn} onPress={removeUser} disabled={busy}>
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={() => void removeUser()}
+              disabled={busy}
+            >
               {busy ? (
                 <ActivityIndicator color="#B91C1C" />
               ) : (

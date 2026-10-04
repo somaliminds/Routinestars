@@ -6,13 +6,14 @@
  * is persisted + audited via setConfig.
  */
 import { useCallback, useState } from 'react';
-import { View, Text, ScrollView, Switch, ActivityIndicator, Alert, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Switch, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth.store';
 import { fetchConfig, setConfig, type AppConfigRow } from '@/lib/admin';
+import { notify } from '@/lib/ui-dialogs';
 
 export default function AdminFlags() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function AdminFlags() {
       setSaving(row.key);
       void (async () => {
         const { error } = await setConfig(adminId, row.key, next);
-        if (error) Alert.alert('Could not save', error);
+        if (error) notify('Could not save', error);
         await qc.invalidateQueries({ queryKey: ['adminConfig'] });
         setSaving(null);
       })();

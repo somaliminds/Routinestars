@@ -112,6 +112,11 @@ export default function AdminDashboard() {
               onPress={() => router.push('/(admin)/users' as never)}
             />
             <NavCard
+              label="Built-in content"
+              hint="Edit shared activity sets + steps"
+              onPress={() => router.push('/(admin)/content' as never)}
+            />
+            <NavCard
               label="Oversight"
               hint="Consents, access audit, AI log, admin log"
               onPress={() => router.push('/(admin)/oversight' as never)}
