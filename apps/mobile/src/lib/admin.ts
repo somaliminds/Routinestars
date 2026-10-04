@@ -128,3 +128,88 @@ export function setUserPlan(userId: string, plan: string, status = 'active'): Pr
 export function deleteUserAccount(userId: string): Promise<void> {
   return invokeAdminUsers({ action: 'delete_user', user_id: userId });
 }
+
+// ── Oversight (read-only; RLS-gated by is_admin) ─────────────────────────────
+
+export interface ConsentOversightRow {
+  consent_id: string;
+  child_id: string;
+  professional_email: string;
+  professional_role: string;
+  data_categories: string[];
+  expiry_date: string;
+  withdrawn_at: string | null;
+  created_at: string;
+}
+
+export interface AccessAuditRow {
+  event_id: string;
+  occurred_at: string;
+  actor_role: string | null;
+  action: string;
+  data_categories: string[];
+  child_id: string;
+}
+
+export interface AiLogRow {
+  log_id: string;
+  feature: string;
+  tool_called: string | null;
+  passed_validation: boolean | null;
+  rejection_reason: string | null;
+  created_at: string;
+}
+
+export interface AdminAuditRow {
+  event_id: string;
+  occurred_at: string;
+  admin_id: string;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+}
+
+/** Active (non-withdrawn, non-expired) professional consents across the platform. */
+export async function fetchActiveConsents(): Promise<ConsentOversightRow[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from('consent_records')
+    .select(
+      'consent_id, child_id, professional_email, professional_role, data_categories, expiry_date, withdrawn_at, created_at',
+    )
+    .is('withdrawn_at', null)
+    .gte('expiry_date', today)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  return (data ?? []) as ConsentOversightRow[];
+}
+
+/** Recent professional data-access events (child identified only by id — no child data). */
+export async function fetchAccessAudit(): Promise<AccessAuditRow[]> {
+  const { data } = await supabase
+    .from('access_audit_log')
+    .select('event_id, occurred_at, actor_role, action, data_categories, child_id')
+    .order('occurred_at', { ascending: false })
+    .limit(100);
+  return (data ?? []) as AccessAuditRow[];
+}
+
+/** Recent AI generation attempts + their governance outcome. */
+export async function fetchAiLog(): Promise<AiLogRow[]> {
+  const { data } = await supabase
+    .from('ai_generation_log')
+    .select('log_id, feature, tool_called, passed_validation, rejection_reason, created_at')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  return (data ?? []) as AiLogRow[];
+}
+
+/** Recent admin actions (the admin's own audit trail). */
+export async function fetchAdminAudit(): Promise<AdminAuditRow[]> {
+  const { data } = await supabase
+    .from('admin_audit_log')
+    .select('event_id, occurred_at, admin_id, action, target_type, target_id')
+    .order('occurred_at', { ascending: false })
+    .limit(100);
+  return (data ?? []) as AdminAuditRow[];
+}
