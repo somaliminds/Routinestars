@@ -435,6 +435,17 @@ Deno.serve(async (req: Request) => {
   }
   const parentUserId = userData.user.id;
 
+  // ── Global AI kill-switch (admin feature flag, migration 038) ──
+  // Admins can disable AI generation platform-wide without a redeploy.
+  const { data: aiFlag } = await supabase
+    .from('app_config')
+    .select('value')
+    .eq('key', 'ai_generation_enabled')
+    .maybeSingle();
+  if (aiFlag && aiFlag.value === false) {
+    return jsonResponse({ error: 'ai_generation_disabled' }, 503);
+  }
+
   // ── Layer 8: feature flag (per-parent opt-in) ──
   const { data: parentProfile } = await supabase
     .from('parent_profiles')

@@ -111,6 +111,11 @@ export default function AdminDashboard() {
               hint="Look up an account, comp a plan, delete"
               onPress={() => router.push('/(admin)/users' as never)}
             />
+            <NavCard
+              label="Feature flags"
+              hint="Maintenance mode, AI kill-switch, signups"
+              onPress={() => router.push('/(admin)/flags' as never)}
+            />
           </>
         )}
       </ScrollView>
