@@ -86,3 +86,45 @@ export async function getFlag<T extends Json>(key: string, fallback: T): Promise
   const { data } = await supabase.from('app_config').select('value').eq('key', key).maybeSingle();
   return (data?.value as T | undefined) ?? fallback;
 }
+
+// ── Users & subscriptions (via the admin-users edge function) ────────────────
+
+export interface AdminUserResult {
+  found: boolean;
+  user?: {
+    id: string;
+    email: string;
+    created_at: string;
+    last_sign_in_at: string | null;
+    name: string | null;
+    role: string | null;
+  };
+  subscription?: {
+    plan: string;
+    status: string;
+    current_period_end: string | null;
+    cancel_at_period_end: boolean;
+    stripe_customer_id: string | null;
+  } | null;
+  children_count?: number;
+}
+
+async function invokeAdminUsers<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('admin-users', { body });
+  if (error) throw new Error(error.message);
+  const res = data as T & { error?: string };
+  if (res && typeof res === 'object' && 'error' in res && res.error) throw new Error(res.error);
+  return res;
+}
+
+export function lookupUser(email: string): Promise<AdminUserResult> {
+  return invokeAdminUsers<AdminUserResult>({ action: 'lookup', email });
+}
+
+export function setUserPlan(userId: string, plan: string, status = 'active'): Promise<void> {
+  return invokeAdminUsers({ action: 'set_plan', user_id: userId, plan, status });
+}
+
+export function deleteUserAccount(userId: string): Promise<void> {
+  return invokeAdminUsers({ action: 'delete_user', user_id: userId });
+}

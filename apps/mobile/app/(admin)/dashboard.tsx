@@ -14,6 +14,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth.store';
 import { fetchOverviewMetrics, type OverviewMetrics } from '@/lib/admin';
@@ -27,6 +28,7 @@ function estimatedMrr(byPlan: Record<string, number>): number {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const session = useAuthStore((s) => s.session);
   const signOut = useAuthStore((s) => s.signOut);
   const onSignOut = useCallback(() => void signOut(), [signOut]);
@@ -102,10 +104,29 @@ export default function AdminDashboard() {
               <Stat value={m.activity_sets_builtin} label="Built-in sets" />
               <Stat value={m.activity_sets_custom} label="Custom sets" />
             </View>
+
+            <Text style={styles.sectionLabel}>Manage</Text>
+            <NavCard
+              label="Users & subscriptions"
+              hint="Look up an account, comp a plan, delete"
+              onPress={() => router.push('/(admin)/users' as never)}
+            />
           </>
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function NavCard({ label, hint, onPress }: { label: string; hint: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.navCard} onPress={onPress} accessibilityRole="button">
+      <View style={{ flex: 1 }}>
+        <Text style={styles.navLabel}>{label}</Text>
+        <Text style={styles.navHint}>{hint}</Text>
+      </View>
+      <Text style={styles.navArrow}>›</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -191,4 +212,17 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   empty: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#5A6B80', lineHeight: 19 },
+  navCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E3E9F0',
+    padding: 16,
+    marginBottom: 10,
+  },
+  navLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#101B2D' },
+  navHint: { fontFamily: 'Inter_400Regular', fontSize: 12.5, color: '#5A6B80', marginTop: 2 },
+  navArrow: { fontFamily: 'Inter_600SemiBold', fontSize: 22, color: '#94A2B4' },
 });
