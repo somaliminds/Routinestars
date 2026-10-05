@@ -6,6 +6,7 @@
  * Currently wires up Google; the same pattern works for Apple/Facebook
  * once those providers are enabled in the Supabase dashboard.
  */
+import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from './supabase';
 
@@ -19,6 +20,24 @@ interface OAuthResult {
 }
 
 export async function signInWithProvider(provider: OAuthProvider): Promise<OAuthResult> {
+  // Web: a browser can't open the native routinestars:// scheme, so the
+  // in-app-browser flow below can never complete there. Do a normal full-page
+  // OAuth redirect back to this site's /auth/callback instead — that route
+  // (app/auth/callback.tsx) reads the tokens from the URL fragment
+  // (Linking.getInitialURL() is window.location.href on web) and sets the
+  // session. The callback URL must be listed in Supabase → Authentication →
+  // URL Configuration → Redirect URLs, or Supabase falls back to the site URL.
+  if (Platform.OS === 'web') {
+    const origin = (globalThis as unknown as { location?: { origin?: string } }).location?.origin;
+    if (!origin) return { ok: false, error: 'No web origin' };
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${origin}/auth/callback` },
+    });
+    // On success the browser is already navigating to the provider.
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
   try {
     // 1. Ask Supabase for the provider's OAuth URL but don't open it ourselves.
     const { data, error } = await supabase.auth.signInWithOAuth({

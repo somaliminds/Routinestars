@@ -654,6 +654,7 @@ function ActivitySetModal({
           illustration_url: null,
           duration_seconds: data.duration_seconds,
           reward_stars: data.reward_stars,
+          is_active: true,
         };
         if (setId) {
           // Persist immediately for existing sets

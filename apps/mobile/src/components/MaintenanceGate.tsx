@@ -20,7 +20,9 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
 
   const { data: inMaintenance = false } = useQuery({
     queryKey: ['maintenanceMode'],
-    queryFn: () => getFlag('maintenance_mode', false),
+    // Explicit <boolean>: from the `false` fallback alone, T would infer as the
+    // literal type `false`, making `inMaintenance === true` a type error.
+    queryFn: () => getFlag<boolean>('maintenance_mode', false),
     enabled: !!session,
     staleTime: 30_000,
     refetchInterval: 120_000,
