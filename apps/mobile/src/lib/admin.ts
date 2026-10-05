@@ -194,13 +194,16 @@ export async function fetchAccessAudit(): Promise<AccessAuditRow[]> {
   return (data ?? []) as AccessAuditRow[];
 }
 
-/** Recent AI generation attempts + their governance outcome. */
+/**
+ * Recent AI generation attempts + their governance outcome.
+ *
+ * Goes through the admin_recent_ai_log RPC, NOT a direct table select: the
+ * ai_generation_log table stores child-identifying input columns (input_meta,
+ * input_prompt, raw_response) and RLS cannot restrict columns, so admins have
+ * no table policy at all — the RPC returns only the safe oversight columns.
+ */
 export async function fetchAiLog(): Promise<AiLogRow[]> {
-  const { data } = await supabase
-    .from('ai_generation_log')
-    .select('log_id, feature, tool_called, passed_validation, rejection_reason, created_at')
-    .order('created_at', { ascending: false })
-    .limit(100);
+  const { data } = await supabase.rpc('admin_recent_ai_log', { p_limit: 100 });
   return (data ?? []) as AiLogRow[];
 }
 

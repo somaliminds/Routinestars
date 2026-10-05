@@ -142,7 +142,20 @@ serve(async (req) => {
           headers: CORS,
         });
       }
-      await admin.from('users').delete().eq('user_id', userId); // cascades public data
+      // Delete public data FIRST and ABORT if it fails. public.users has no FK
+      // to auth.users, so if we deleted the auth identity first (or ignored this
+      // error) a failed cascade — e.g. a NO ACTION FK from a cross-family
+      // care-team reference (completions.approved_by, day_schedules.created_by,
+      // lockout_events.unlocked_by), a deadlock, or a statement timeout on a
+      // heavy account — would orphan the child-data subtree with no owning auth
+      // user while we falsely reported success. Fail loudly instead.
+      const { error: delRowErr } = await admin.from('users').delete().eq('user_id', userId);
+      if (delRowErr) {
+        return new Response(JSON.stringify({ error: 'delete_failed', detail: delRowErr.message }), {
+          status: 500,
+          headers: CORS,
+        });
+      }
       const { error: authErr } = await admin.auth.admin.deleteUser(userId);
       if (authErr) {
         return new Response(JSON.stringify({ error: authErr.message, partial: true }), {

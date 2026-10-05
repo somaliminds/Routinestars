@@ -840,6 +840,17 @@ export type Database = {
         Args: Record<string, never>;
         Returns: Json;
       };
+      admin_recent_ai_log: {
+        Args: { p_limit?: number };
+        Returns: {
+          log_id: string;
+          feature: string;
+          tool_called: string | null;
+          passed_validation: boolean | null;
+          rejection_reason: string | null;
+          created_at: string;
+        }[];
+      };
       get_completion_rate_30d: {
         Args: { p_child_id: string };
         Returns: { day: string; scheduled: number; completed: number }[];

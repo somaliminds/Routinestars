@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   Switch,
   Modal,
+  Platform,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
@@ -186,6 +187,7 @@ const emptySet = (): EditSet => ({
 });
 
 export default function AdminContent() {
+  const isWeb = Platform.OS === 'web';
   const router = useRouter();
   const qc = useQueryClient();
   const { data: sets = [], isLoading } = useQuery({
@@ -303,137 +305,139 @@ export default function AdminContent() {
       {/* Editor modal */}
       <Modal visible={!!editing} animationType="slide" onRequestClose={() => setEditing(null)}>
         {editing && (
-          <SafeAreaView style={styles.screen}>
-            <View style={styles.header}>
-              <TouchableOpacity onPress={() => setEditing(null)}>
-                <Text style={styles.back}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={styles.title}>{editing.set_id ? 'Edit set' : 'New set'}</Text>
-              <TouchableOpacity onPress={() => void save()} disabled={saving}>
-                <Text style={styles.new}>{saving ? '…' : 'Save'}</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-              <Text style={styles.fieldLabel}>Name</Text>
-              <TextInput
-                style={styles.input}
-                value={editing.set_name}
-                onChangeText={(t) => setEditing({ ...editing, set_name: t })}
-                placeholder="Morning Routine"
-                placeholderTextColor="#94A2B4"
-              />
-              <Text style={styles.fieldLabel}>Emoji</Text>
-              <TextInput
-                style={[styles.input, { width: 80 }]}
-                value={editing.icon_emoji}
-                onChangeText={(t) => setEditing({ ...editing, icon_emoji: t })}
-                maxLength={4}
-              />
-              <Text style={styles.fieldLabel}>Category</Text>
-              <View style={styles.chipRow}>
-                {CATEGORIES.map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[styles.chip, editing.category === c && styles.chipOn]}
-                    onPress={() => setEditing({ ...editing, category: c })}
-                  >
-                    <Text style={[styles.chipText, editing.category === c && styles.chipTextOn]}>
-                      {c}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+          <View style={isWeb ? styles.modalPageWeb : styles.screen}>
+            <SafeAreaView style={isWeb ? styles.modalColumnWeb : styles.screen}>
+              <View style={styles.header}>
+                <TouchableOpacity onPress={() => setEditing(null)}>
+                  <Text style={styles.back}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.title}>{editing.set_id ? 'Edit set' : 'New set'}</Text>
+                <TouchableOpacity onPress={() => void save()} disabled={saving}>
+                  <Text style={styles.new}>{saving ? '…' : 'Save'}</Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.approvalRow}>
-                <Text style={styles.fieldLabel}>Requires approval</Text>
-                <Switch
-                  value={editing.requires_approval}
-                  onValueChange={(v) => setEditing({ ...editing, requires_approval: v })}
-                  trackColor={{ true: '#7C3AED', false: '#CBD5E1' }}
+              <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+                <Text style={styles.fieldLabel}>Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editing.set_name}
+                  onChangeText={(t) => setEditing({ ...editing, set_name: t })}
+                  placeholder="Morning Routine"
+                  placeholderTextColor="#94A2B4"
                 />
-              </View>
+                <Text style={styles.fieldLabel}>Emoji</Text>
+                <TextInput
+                  style={[styles.input, { width: 80 }]}
+                  value={editing.icon_emoji}
+                  onChangeText={(t) => setEditing({ ...editing, icon_emoji: t })}
+                  maxLength={4}
+                />
+                <Text style={styles.fieldLabel}>Category</Text>
+                <View style={styles.chipRow}>
+                  {CATEGORIES.map((c) => (
+                    <TouchableOpacity
+                      key={c}
+                      style={[styles.chip, editing.category === c && styles.chipOn]}
+                      onPress={() => setEditing({ ...editing, category: c })}
+                    >
+                      <Text style={[styles.chipText, editing.category === c && styles.chipTextOn]}>
+                        {c}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={styles.approvalRow}>
+                  <Text style={styles.fieldLabel}>Requires approval</Text>
+                  <Switch
+                    value={editing.requires_approval}
+                    onValueChange={(v) => setEditing({ ...editing, requires_approval: v })}
+                    trackColor={{ true: '#7C3AED', false: '#CBD5E1' }}
+                  />
+                </View>
 
-              <Text style={[styles.fieldLabel, { marginTop: 18 }]}>Steps</Text>
-              {editing.steps.map((st, i) => (
-                <View key={st.step_id ?? `new-${i}`} style={styles.stepCard}>
-                  <View style={styles.stepHead}>
-                    <Text style={styles.stepNum}>Step {i + 1}</Text>
-                    <View style={styles.stepBtns}>
-                      <TouchableOpacity onPress={() => moveStep(i, -1)} disabled={i === 0}>
-                        <Text style={[styles.moveBtn, i === 0 && styles.moveDisabled]}>↑</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => moveStep(i, 1)}
-                        disabled={i === editing.steps.length - 1}
-                      >
-                        <Text
-                          style={[
-                            styles.moveBtn,
-                            i === editing.steps.length - 1 && styles.moveDisabled,
-                          ]}
+                <Text style={[styles.fieldLabel, { marginTop: 18 }]}>Steps</Text>
+                {editing.steps.map((st, i) => (
+                  <View key={st.step_id ?? `new-${i}`} style={styles.stepCard}>
+                    <View style={styles.stepHead}>
+                      <Text style={styles.stepNum}>Step {i + 1}</Text>
+                      <View style={styles.stepBtns}>
+                        <TouchableOpacity onPress={() => moveStep(i, -1)} disabled={i === 0}>
+                          <Text style={[styles.moveBtn, i === 0 && styles.moveDisabled]}>↑</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => moveStep(i, 1)}
+                          disabled={i === editing.steps.length - 1}
                         >
-                          ↓
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() =>
-                          void confirmAction({
-                            title: 'Remove step',
-                            message: 'Remove this step when you save?',
-                            confirmLabel: 'Remove',
-                            destructive: true,
-                          }).then((ok) => {
-                            if (ok) removeStep(i);
+                          <Text
+                            style={[
+                              styles.moveBtn,
+                              i === editing.steps.length - 1 && styles.moveDisabled,
+                            ]}
+                          >
+                            ↓
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() =>
+                            void confirmAction({
+                              title: 'Remove step',
+                              message: 'Remove this step when you save?',
+                              confirmLabel: 'Remove',
+                              destructive: true,
+                            }).then((ok) => {
+                              if (ok) removeStep(i);
+                            })
+                          }
+                        >
+                          <Text style={styles.removeBtn}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <TextInput
+                      style={styles.input}
+                      value={st.title}
+                      onChangeText={(t) => updateStep(i, { title: t })}
+                      placeholder="Step title"
+                      placeholderTextColor="#94A2B4"
+                    />
+                    <TextInput
+                      style={[styles.input, { minHeight: 56 }]}
+                      value={st.instruction_text}
+                      onChangeText={(t) => updateStep(i, { instruction_text: t })}
+                      placeholder="Instruction"
+                      placeholderTextColor="#94A2B4"
+                      multiline
+                    />
+                    <View style={styles.stepMetaRow}>
+                      <Text style={styles.stepMetaLabel}>Seconds</Text>
+                      <TextInput
+                        style={[styles.input, styles.numInput]}
+                        value={String(st.duration_seconds)}
+                        onChangeText={(t) =>
+                          updateStep(i, {
+                            duration_seconds: Math.max(5, parseInt(t || '0', 10) || 0),
                           })
                         }
-                      >
-                        <Text style={styles.removeBtn}>✕</Text>
-                      </TouchableOpacity>
+                        keyboardType="number-pad"
+                      />
+                      <Text style={styles.stepMetaLabel}>Stars</Text>
+                      <TextInput
+                        style={[styles.input, styles.numInput]}
+                        value={String(st.reward_stars)}
+                        onChangeText={(t) =>
+                          updateStep(i, { reward_stars: Math.max(0, parseInt(t || '0', 10) || 0) })
+                        }
+                        keyboardType="number-pad"
+                      />
                     </View>
                   </View>
-                  <TextInput
-                    style={styles.input}
-                    value={st.title}
-                    onChangeText={(t) => updateStep(i, { title: t })}
-                    placeholder="Step title"
-                    placeholderTextColor="#94A2B4"
-                  />
-                  <TextInput
-                    style={[styles.input, { minHeight: 56 }]}
-                    value={st.instruction_text}
-                    onChangeText={(t) => updateStep(i, { instruction_text: t })}
-                    placeholder="Instruction"
-                    placeholderTextColor="#94A2B4"
-                    multiline
-                  />
-                  <View style={styles.stepMetaRow}>
-                    <Text style={styles.stepMetaLabel}>Seconds</Text>
-                    <TextInput
-                      style={[styles.input, styles.numInput]}
-                      value={String(st.duration_seconds)}
-                      onChangeText={(t) =>
-                        updateStep(i, {
-                          duration_seconds: Math.max(5, parseInt(t || '0', 10) || 0),
-                        })
-                      }
-                      keyboardType="number-pad"
-                    />
-                    <Text style={styles.stepMetaLabel}>Stars</Text>
-                    <TextInput
-                      style={[styles.input, styles.numInput]}
-                      value={String(st.reward_stars)}
-                      onChangeText={(t) =>
-                        updateStep(i, { reward_stars: Math.max(0, parseInt(t || '0', 10) || 0) })
-                      }
-                      keyboardType="number-pad"
-                    />
-                  </View>
-                </View>
-              ))}
-              <TouchableOpacity style={styles.addStep} onPress={addStep}>
-                <Text style={styles.addStepText}>+ Add step</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </SafeAreaView>
+                ))}
+                <TouchableOpacity style={styles.addStep} onPress={addStep}>
+                  <Text style={styles.addStepText}>+ Add step</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </SafeAreaView>
+          </View>
         )}
       </Modal>
     </SafeAreaView>
@@ -442,6 +446,10 @@ export default function AdminContent() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F6F8FB' },
+  // On web the Modal portals to <body>, escaping the panel's centered column —
+  // re-create the centered 1100px column inside the modal so the editor matches.
+  modalPageWeb: { flex: 1, backgroundColor: '#EEF2F7', alignItems: 'center' },
+  modalColumnWeb: { flex: 1, width: '100%', maxWidth: 1100, backgroundColor: '#F6F8FB' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
