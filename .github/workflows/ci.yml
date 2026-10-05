@@ -57,8 +57,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: apps/mobile/package-lock.json
       - run: npm ci --omit=optional
-      - name: Audit production dependencies (high+)
-        run: npm audit --audit-level=high --omit=dev
+      - name: Audit production dependencies (high+, reviewed exceptions)
+        # Same gate as `npm audit --audit-level=high --omit=dev`, plus a reviewed
+        # allowlist (apps/mobile/audit-ci.jsonc) for build-tooling advisories
+        # with no fix inside Expo SDK 54. Any NEW high/critical still fails.
+        run: npx --yes audit-ci@7.1.0 --config audit-ci.jsonc
 
   # Detect committed secrets BEFORE they reach origin/main. Scans the diff
   # vs the default branch on PRs, full history on push.

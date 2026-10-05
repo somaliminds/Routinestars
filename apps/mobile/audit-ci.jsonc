@@ -1,0 +1,23 @@
+{
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  // CI fails on any HIGH or CRITICAL advisory in production dependencies…
+  "high": true,
+  "skip-dev": true,
+  // …except these four, reviewed 2026-10-05. All are in BUILD/DEV TOOLING that
+  // runs on the developer's machine or in CI (Metro, Expo CLI, the Tailwind 3
+  // compiler) — none of it ships in the app bundle — and none has a fix
+  // available inside Expo SDK 54. Any NEW high/critical still fails CI.
+  // Revisit at the next Expo SDK upgrade and delete entries as they clear.
+  "allowlist": [
+    // braces <=3.0.3 — stack-exhaustion DoS. Via Tailwind 3 / chokidar /
+    // micromatch file watching. 3.0.3 is the latest release: no fix published.
+    "GHSA-vfj7-8cjw-p6xm",
+    // node-forge <=1.4.0 — RSA PKCS#1 v1.5 signature check. Via Expo CLI's
+    // code-signing (EAS Update signing). 1.4.0 is the latest: no fix published.
+    "GHSA-86w9-cpqp-85rv",
+    // image-size — JXL/HEIF and ICNS parser DoS. Via Metro asset sizing, which
+    // requires image-size 1.x; the fix exists only in 2.x (breaking API change).
+    "GHSA-5p2g-fcmc-qvqq",
+    "GHSA-w3rx-r6r6-pgpr"
+  ]
+}
