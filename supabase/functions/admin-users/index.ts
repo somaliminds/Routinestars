@@ -1,7 +1,15 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.99.0';
 
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
+// The admin panel runs on WEB, so the browser preflights every call: the
+// preflight must allow the headers supabase.functions.invoke sends, or the
+// browser blocks the request. (Mirrors generate-routine's corsHeaders.)
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
 
 /**
  * admin-users — privileged admin operations that can't go through client RLS:
