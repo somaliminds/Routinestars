@@ -115,6 +115,7 @@ export function useStepSequencer(
           .from('steps')
           .select('*')
           .eq('set_id', scheduledSet.set_id)
+          .eq('is_active', true) // archived (admin-removed) steps never shown to children
           .order('order_index');
 
         if (stepsErr) throw stepsErr;

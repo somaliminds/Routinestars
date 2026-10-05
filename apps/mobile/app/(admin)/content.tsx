@@ -24,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import type { Json } from '@/types/database';
 import { confirmAction, notify } from '@/lib/ui-dialogs';
 
 const CATEGORIES = ['MORNING', 'SCHOOL', 'AFTERNOON', 'EVENING', 'WEEKEND', 'CUSTOM'] as const;
@@ -54,18 +55,20 @@ interface SetRow {
 }
 
 async function fetchBuiltInSets(): Promise<(SetRow & { stepCount: number })[]> {
-  const { data: sets } = await supabase
+  const { data: sets, error } = await supabase
     .from('activity_sets')
     .select('set_id, set_name, icon_emoji, category, requires_approval, total_duration_mins')
     .eq('is_custom', false)
     .order('category');
+  if (error) throw error; // surface load failures (error + empty states are distinct)
   const rows = (sets ?? []) as SetRow[];
   const withCounts = await Promise.all(
     rows.map(async (s) => {
       const { count } = await supabase
         .from('steps')
         .select('step_id', { count: 'exact', head: true })
-        .eq('set_id', s.set_id);
+        .eq('set_id', s.set_id)
+        .eq('is_active', true); // archived steps don't count
       return { ...s, stepCount: count ?? 0 };
     }),
   );
@@ -73,22 +76,25 @@ async function fetchBuiltInSets(): Promise<(SetRow & { stepCount: number })[]> {
 }
 
 async function loadSetForEdit(setId: string): Promise<EditSet> {
-  const { data: set } = await supabase
+  const { data: set, error: setErr } = await supabase
     .from('activity_sets')
     .select('set_id, set_name, icon_emoji, category, requires_approval')
     .eq('set_id', setId)
     .single();
-  const { data: steps } = await supabase
+  if (setErr || !set) throw setErr ?? new Error('Set not found');
+  const { data: steps, error: stepsErr } = await supabase
     .from('steps')
     .select('step_id, title, instruction_text, duration_seconds, reward_stars')
     .eq('set_id', setId)
+    .eq('is_active', true) // only active steps are editable; archived stay hidden
     .order('order_index');
+  if (stepsErr) throw stepsErr;
   return {
-    set_id: set!.set_id,
-    set_name: set!.set_name,
-    icon_emoji: set!.icon_emoji,
-    category: set!.category,
-    requires_approval: set!.requires_approval,
+    set_id: set.set_id,
+    set_name: set.set_name,
+    icon_emoji: set.icon_emoji,
+    category: set.category,
+    requires_approval: set.requires_approval,
     steps: (steps ?? []).map((s) => ({
       step_id: s.step_id,
       title: s.title,
@@ -99,82 +105,32 @@ async function loadSetForEdit(setId: string): Promise<EditSet> {
   };
 }
 
-async function saveSet(edit: EditSet, removedStepIds: string[]): Promise<void> {
-  const totalMins = Math.max(
-    1,
-    Math.ceil(edit.steps.reduce((s, st) => s + st.duration_seconds, 0) / 60),
-  );
-  let setId = edit.set_id;
-
-  if (setId) {
-    await supabase
-      .from('activity_sets')
-      .update({
-        set_name: edit.set_name,
-        icon_emoji: edit.icon_emoji,
-        category: edit.category,
-        requires_approval: edit.requires_approval,
-        total_duration_mins: totalMins,
-      })
-      .eq('set_id', setId);
-  } else {
-    const { data: newSet, error } = await supabase
-      .from('activity_sets')
-      .insert({
-        set_name: edit.set_name,
-        icon_emoji: edit.icon_emoji,
-        category: edit.category,
-        requires_approval: edit.requires_approval,
-        total_duration_mins: totalMins,
-        is_custom: false,
-        created_by_parent_id: null,
-      })
-      .select('set_id')
-      .single();
-    if (error || !newSet) throw error ?? new Error('Could not create set');
-    setId = newSet.set_id;
-  }
-
-  for (const id of removedStepIds) {
-    await supabase.from('steps').delete().eq('step_id', id);
-  }
-
-  // Phase A: move existing to an offset + insert new (both at 1000+i, unique).
-  const ids: string[] = [];
-  for (let i = 0; i < edit.steps.length; i++) {
-    const st = edit.steps[i];
-    if (st.step_id) {
-      await supabase
-        .from('steps')
-        .update({
-          title: st.title,
-          instruction_text: st.instruction_text,
-          duration_seconds: st.duration_seconds,
-          reward_stars: st.reward_stars,
-          order_index: 1000 + i,
-        })
-        .eq('step_id', st.step_id);
-      ids.push(st.step_id);
-    } else {
-      const { data: ins } = await supabase
-        .from('steps')
-        .insert({
-          set_id: setId,
-          order_index: 1000 + i,
-          title: st.title,
-          instruction_text: st.instruction_text,
-          duration_seconds: st.duration_seconds,
-          reward_stars: st.reward_stars,
-        })
-        .select('step_id')
-        .single();
-      if (ins) ids.push(ins.step_id);
-    }
-  }
-  // Phase B: final contiguous order.
-  for (let i = 0; i < ids.length; i++) {
-    await supabase.from('steps').update({ order_index: i }).eq('step_id', ids[i]);
-  }
+/**
+ * Save the set + steps in ONE atomic, is_admin()-gated, audited transaction
+ * (admin_save_activity_set, migration 040). steps[] is the desired ACTIVE list
+ * in order; any existing step omitted from it is soft-archived server-side so
+ * children's completion history is preserved. postgrest-js never throws, so the
+ * `.error` MUST be checked — a swallowed error would look like a successful save.
+ */
+async function saveSet(edit: EditSet): Promise<void> {
+  const payload = {
+    set_id: edit.set_id,
+    set_name: edit.set_name.trim(),
+    icon_emoji: edit.icon_emoji,
+    category: edit.category,
+    requires_approval: edit.requires_approval,
+    steps: edit.steps.map((s) => ({
+      step_id: s.step_id,
+      title: s.title.trim(),
+      instruction_text: s.instruction_text.trim(),
+      duration_seconds: s.duration_seconds,
+      reward_stars: s.reward_stars,
+    })),
+  };
+  const { error } = await supabase.rpc('admin_save_activity_set', {
+    p: payload as unknown as Json,
+  });
+  if (error) throw new Error(error.message);
 }
 
 const emptySet = (): EditSet => ({
@@ -190,17 +146,24 @@ export default function AdminContent() {
   const isWeb = Platform.OS === 'web';
   const router = useRouter();
   const qc = useQueryClient();
-  const { data: sets = [], isLoading } = useQuery({
+  const {
+    data: sets = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['adminBuiltInSets'],
     queryFn: fetchBuiltInSets,
   });
   const [editing, setEditing] = useState<EditSet | null>(null);
-  const [removedIds, setRemovedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const openSet = useCallback(async (setId: string) => {
-    setRemovedIds([]);
-    setEditing(await loadSetForEdit(setId));
+    try {
+      setEditing(await loadSetForEdit(setId));
+    } catch (e) {
+      notify('Could not open set', e instanceof Error ? e.message : 'Unknown error');
+    }
   }, []);
 
   const save = useCallback(async () => {
@@ -209,18 +172,24 @@ export default function AdminContent() {
       notify('Name required', 'Give the set a name.');
       return;
     }
+    // Steps are NOT NULL in the DB but '' passes — require real content so a
+    // blank-titled step can't reach a child screen (no icon without a label).
+    const badStep = editing.steps.findIndex((s) => !s.title.trim() || !s.instruction_text.trim());
+    if (badStep !== -1) {
+      notify('Step incomplete', `Step ${badStep + 1} needs a title and an instruction.`);
+      return;
+    }
     setSaving(true);
     try {
-      await saveSet(editing, removedIds);
+      await saveSet(editing);
       setEditing(null);
-      setRemovedIds([]);
       await qc.invalidateQueries({ queryKey: ['adminBuiltInSets'] });
     } catch (e) {
       notify('Save failed', e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setSaving(false);
     }
-  }, [editing, removedIds, qc]);
+  }, [editing, qc]);
 
   const updateStep = (i: number, patch: Partial<EditStep>) =>
     setEditing((e) =>
@@ -238,8 +207,8 @@ export default function AdminContent() {
   const removeStep = (i: number) =>
     setEditing((e) => {
       if (!e) return e;
-      const st = e.steps[i];
-      if (st.step_id) setRemovedIds((r) => [...r, st.step_id as string]);
+      // The save RPC soft-archives any existing step omitted from the list, so
+      // simply dropping it here is enough — no separate removed-id tracking.
       return { ...e, steps: e.steps.filter((_, idx) => idx !== i) };
     });
   const addStep = () =>
@@ -268,12 +237,7 @@ export default function AdminContent() {
           <Text style={styles.back}>‹ Dashboard</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Built-in content</Text>
-        <TouchableOpacity
-          onPress={() => {
-            setRemovedIds([]);
-            setEditing(emptySet());
-          }}
-        >
+        <TouchableOpacity onPress={() => setEditing(emptySet())}>
           <Text style={styles.new}>+ New</Text>
         </TouchableOpacity>
       </View>
@@ -281,6 +245,17 @@ export default function AdminContent() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
         {isLoading ? (
           <ActivityIndicator color="#7C3AED" style={{ marginTop: 30 }} />
+        ) : isError ? (
+          <View style={styles.stateBox}>
+            <Text style={styles.stateText}>Couldn’t load built-in content.</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => void refetch()}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : sets.length === 0 ? (
+          <View style={styles.stateBox}>
+            <Text style={styles.stateText}>No built-in sets yet. Tap “+ New” to create one.</Text>
+          </View>
         ) : (
           sets.map((s) => (
             <TouchableOpacity
@@ -324,6 +299,7 @@ export default function AdminContent() {
                   onChangeText={(t) => setEditing({ ...editing, set_name: t })}
                   placeholder="Morning Routine"
                   placeholderTextColor="#94A2B4"
+                  maxLength={100}
                 />
                 <Text style={styles.fieldLabel}>Emoji</Text>
                 <TextInput
@@ -399,6 +375,7 @@ export default function AdminContent() {
                       onChangeText={(t) => updateStep(i, { title: t })}
                       placeholder="Step title"
                       placeholderTextColor="#94A2B4"
+                      maxLength={120}
                     />
                     <TextInput
                       style={[styles.input, { minHeight: 56 }]}
@@ -415,7 +392,11 @@ export default function AdminContent() {
                         value={String(st.duration_seconds)}
                         onChangeText={(t) =>
                           updateStep(i, {
-                            duration_seconds: Math.max(5, parseInt(t || '0', 10) || 0),
+                            // free editing (min 0 while typing); server clamps to [5, 86400]
+                            duration_seconds: Math.max(
+                              0,
+                              Math.min(parseInt(t || '0', 10) || 0, 86400),
+                            ),
                           })
                         }
                         keyboardType="number-pad"
@@ -425,7 +406,9 @@ export default function AdminContent() {
                         style={[styles.input, styles.numInput]}
                         value={String(st.reward_stars)}
                         onChangeText={(t) =>
-                          updateStep(i, { reward_stars: Math.max(0, parseInt(t || '0', 10) || 0) })
+                          updateStep(i, {
+                            reward_stars: Math.max(0, Math.min(parseInt(t || '0', 10) || 0, 100)),
+                          })
                         }
                         keyboardType="number-pad"
                       />
@@ -446,6 +429,21 @@ export default function AdminContent() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F6F8FB' },
+  stateBox: { alignItems: 'center', marginTop: 40, paddingHorizontal: 24, gap: 14 },
+  stateText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: '#5A6B80',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryBtn: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  retryText: { fontFamily: 'Inter_600SemiBold', fontSize: 14, color: '#FFFFFF' },
   // On web the Modal portals to <body>, escaping the panel's centered column —
   // re-create the centered 1100px column inside the modal so the editor matches.
   modalPageWeb: { flex: 1, backgroundColor: '#EEF2F7', alignItems: 'center' },

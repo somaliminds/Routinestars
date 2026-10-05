@@ -73,7 +73,11 @@ async function fetchTodaySchedule(childId: string): Promise<TodaySchedule | null
           'set_id, set_name, icon_emoji, colour_theme, total_duration_mins, requires_approval',
         )
         .in('set_id', safeSetIds),
-      supabase.from('steps').select('set_id, reward_stars').in('set_id', safeSetIds),
+      supabase
+        .from('steps')
+        .select('set_id, reward_stars')
+        .in('set_id', safeSetIds)
+        .eq('is_active', true), // archived steps don't count toward a set's stars
     ]);
 
     const actSetById: Record<

@@ -23,6 +23,7 @@ import { initSentry, setSentryUser, Sentry } from '@/lib/sentry';
 import { deriveRoleFromBoot, type BootContext, type ResolvedRole } from '@/lib/boot-role';
 import { initI18n, changeLanguage } from '@/i18n';
 import { useLanguageStore } from '@/stores/language.store';
+import { MaintenanceGate } from '@/components/MaintenanceGate';
 
 // Initialise Sentry as early as possible — before any user code runs.
 initSentry();
@@ -159,7 +160,20 @@ function AuthGuard() {
       try {
         const { data, error } = await supabase.rpc('get_boot_context');
         if (!error && data) {
-          return deriveRoleFromBoot(data as BootContext);
+          const ctx = data as BootContext;
+          // Defensive: an older get_boot_context (migration 031 without 038's
+          // redefinition) has no is_admin_member key. Don't let an admin fall
+          // through to parent routing — confirm membership via the self-read
+          // policy before trusting the payload for the admin decision.
+          if (ctx.is_admin_member === undefined) {
+            const { data: adminRow } = await supabase
+              .from('admin_users')
+              .select('user_id')
+              .eq('user_id', userId)
+              .maybeSingle();
+            if (adminRow) return { role: 'admin', needsPinSetup: false };
+          }
+          return deriveRoleFromBoot(ctx);
         }
       } catch {
         // fall through to the legacy sequential path
@@ -441,16 +455,18 @@ function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <AuthGuard />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(child)" />
-          <Stack.Screen name="(parent)" />
-          <Stack.Screen name="(ta)" />
-          <Stack.Screen name="(professional)" />
-          <Stack.Screen name="(admin)" />
-          <Stack.Screen name="subscription/success" />
-          <Stack.Screen name="subscription/cancel" />
-        </Stack>
+        <MaintenanceGate>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(child)" />
+            <Stack.Screen name="(parent)" />
+            <Stack.Screen name="(ta)" />
+            <Stack.Screen name="(professional)" />
+            <Stack.Screen name="(admin)" />
+            <Stack.Screen name="subscription/success" />
+            <Stack.Screen name="subscription/cancel" />
+          </Stack>
+        </MaintenanceGate>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

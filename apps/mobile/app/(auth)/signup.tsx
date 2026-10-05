@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -38,7 +39,20 @@ export default function SignupScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // Honour the admin `signups_enabled` flag (read pre-auth via an anon RPC).
+  // Fail-OPEN: a flag-read error must never block legitimate sign-ups.
+  const { data: signupsOn = true } = useQuery({
+    queryKey: ['signupsEnabled'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('signups_enabled');
+      if (error) return true;
+      return data ?? true;
+    },
+    staleTime: 60_000,
+  });
+
   async function handleGoogle() {
+    if (!signupsOn) return;
     setIsGoogleLoading(true);
     const result = await signInWithProvider('google');
     setIsGoogleLoading(false);
@@ -56,6 +70,7 @@ export default function SignupScreen() {
   });
 
   const onSubmit = async (data: SignupForm) => {
+    if (!signupsOn) return;
     setIsLoading(true);
     try {
       const { data: result, error } = await supabase.auth.signUp({
@@ -104,89 +119,111 @@ export default function SignupScreen() {
 
   return (
     <AuthLayout brand title="Create your account" subtitle="Set up RoutineStars for your family">
-      <GoogleButton
-        onPress={handleGoogle}
-        isLoading={isGoogleLoading}
-        label="Sign up with Google"
-      />
-      <OrDivider />
-      <Controller
-        control={control}
-        name="name"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <AuthInput
-            label="Your name"
-            placeholder="e.g. Sarah"
-            autoCapitalize="words"
-            autoComplete="name"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
-            error={errors.name?.message}
+      {!signupsOn ? (
+        <>
+          <Text style={styles.pausedText}>
+            New sign-ups are temporarily paused. Please check back soon.
+          </Text>
+          <PrimaryButton label="Go to sign in" onPress={() => router.replace('/(auth)/login')} />
+        </>
+      ) : (
+        <>
+          <GoogleButton
+            onPress={handleGoogle}
+            isLoading={isGoogleLoading}
+            label="Sign up with Google"
           />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="email"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <AuthInput
-            label="Email address"
-            placeholder="you@example.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
-            error={errors.email?.message}
+          <OrDivider />
+          <Controller
+            control={control}
+            name="name"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <AuthInput
+                label="Your name"
+                placeholder="e.g. Sarah"
+                autoCapitalize="words"
+                autoComplete="name"
+                onBlur={onBlur}
+                onChangeText={onChange}
+                value={value}
+                error={errors.name?.message}
+              />
+            )}
           />
-        )}
-      />
 
-      <Controller
-        control={control}
-        name="password"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <AuthInput
-            label="Password"
-            placeholder="Min 8 chars, 1 uppercase, 1 number"
-            secureTextEntry
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
-            error={errors.password?.message}
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <AuthInput
+                label="Email address"
+                placeholder="you@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                onBlur={onBlur}
+                onChangeText={onChange}
+                value={value}
+                error={errors.email?.message}
+              />
+            )}
           />
-        )}
-      />
 
-      <Controller
-        control={control}
-        name="confirmPassword"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <AuthInput
-            label="Confirm password"
-            placeholder="••••••••"
-            secureTextEntry
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
-            error={errors.confirmPassword?.message}
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <AuthInput
+                label="Password"
+                placeholder="Min 8 chars, 1 uppercase, 1 number"
+                secureTextEntry
+                onBlur={onBlur}
+                onChangeText={onChange}
+                value={value}
+                error={errors.password?.message}
+              />
+            )}
           />
-        )}
-      />
 
-      <PrimaryButton
-        label="Create Account"
-        onPress={handleSubmit(onSubmit)}
-        isLoading={isLoading}
-      />
+          <Controller
+            control={control}
+            name="confirmPassword"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <AuthInput
+                label="Confirm password"
+                placeholder="••••••••"
+                secureTextEntry
+                onBlur={onBlur}
+                onChangeText={onChange}
+                value={value}
+                error={errors.confirmPassword?.message}
+              />
+            )}
+          />
 
-      <TextLink
-        label="Already have an account? Sign in"
-        onPress={() => router.push('/(auth)/login')}
-      />
+          <PrimaryButton
+            label="Create Account"
+            onPress={handleSubmit(onSubmit)}
+            isLoading={isLoading}
+          />
+
+          <TextLink
+            label="Already have an account? Sign in"
+            onPress={() => router.push('/(auth)/login')}
+          />
+        </>
+      )}
     </AuthLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  pausedText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+    color: '#4B5563',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+});

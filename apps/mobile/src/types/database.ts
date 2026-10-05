@@ -139,6 +139,7 @@ export type Database = {
           illustration_url: string | null;
           duration_seconds: number;
           reward_stars: number;
+          is_active: boolean;
         };
         Insert: {
           step_id?: string;
@@ -150,6 +151,7 @@ export type Database = {
           illustration_url?: string | null;
           duration_seconds?: number;
           reward_stars?: number;
+          is_active?: boolean;
         };
         Update: {
           order_index?: number;
@@ -159,6 +161,7 @@ export type Database = {
           illustration_url?: string | null;
           duration_seconds?: number;
           reward_stars?: number;
+          is_active?: boolean;
         };
         Relationships: [];
       };
@@ -850,6 +853,14 @@ export type Database = {
           rejection_reason: string | null;
           created_at: string;
         }[];
+      };
+      admin_save_activity_set: {
+        Args: { p: Json };
+        Returns: string;
+      };
+      signups_enabled: {
+        Args: Record<string, never>;
+        Returns: boolean;
       };
       get_completion_rate_30d: {
         Args: { p_child_id: string };

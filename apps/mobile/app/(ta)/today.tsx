@@ -101,7 +101,7 @@ async function fetchTodayActivities(childIds: string[]): Promise<TodayActivity[]
   const safeIds = setIds.length > 0 ? setIds : ['__none__'];
   const [{ data: activitySets }, { data: stepCounts }] = await Promise.all([
     supabase.from('activity_sets').select('set_id, set_name, icon_emoji').in('set_id', safeIds),
-    supabase.from('steps').select('set_id').in('set_id', safeIds),
+    supabase.from('steps').select('set_id').in('set_id', safeIds).eq('is_active', true),
   ]);
   const setNameById: Record<string, { set_name: string; icon_emoji: string }> = {};
   for (const a of activitySets ?? []) setNameById[a.set_id] = a;
@@ -127,6 +127,7 @@ async function fetchStepsForSet(setId: string): Promise<StepRow[]> {
     .from('steps')
     .select('step_id, order_index, title, instruction_text, duration_seconds, reward_stars')
     .eq('set_id', setId)
+    .eq('is_active', true)
     .order('order_index');
   return (data ?? []) as StepRow[];
 }
