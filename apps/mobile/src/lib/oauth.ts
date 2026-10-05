@@ -12,6 +12,23 @@ import { supabase } from './supabase';
 
 const REDIRECT_TO = 'routinestars://auth/callback';
 
+/** The web origin, read without needing the DOM lib in tsconfig. */
+function webOrigin(): string | undefined {
+  return (globalThis as unknown as { location?: { origin?: string } }).location?.origin;
+}
+
+/**
+ * Where Supabase should send a user back to after OAuth or an email link
+ * (signup confirmation): this site's /auth/callback on web, the app's deep
+ * link on native. Both land on app/auth/callback.tsx, which turns the tokens
+ * into a session. Each URL must be listed in Supabase → Authentication →
+ * URL Configuration → Redirect URLs, or Supabase falls back to the site URL.
+ */
+export function authCallbackUrl(): string {
+  const origin = Platform.OS === 'web' ? webOrigin() : undefined;
+  return origin ? `${origin}/auth/callback` : REDIRECT_TO;
+}
+
 export type OAuthProvider = 'google';
 
 interface OAuthResult {
@@ -25,14 +42,12 @@ export async function signInWithProvider(provider: OAuthProvider): Promise<OAuth
   // OAuth redirect back to this site's /auth/callback instead — that route
   // (app/auth/callback.tsx) reads the tokens from the URL fragment
   // (Linking.getInitialURL() is window.location.href on web) and sets the
-  // session. The callback URL must be listed in Supabase → Authentication →
-  // URL Configuration → Redirect URLs, or Supabase falls back to the site URL.
+  // session (see authCallbackUrl).
   if (Platform.OS === 'web') {
-    const origin = (globalThis as unknown as { location?: { origin?: string } }).location?.origin;
-    if (!origin) return { ok: false, error: 'No web origin' };
+    if (!webOrigin()) return { ok: false, error: 'No web origin' };
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${origin}/auth/callback` },
+      options: { redirectTo: authCallbackUrl() },
     });
     // On success the browser is already navigating to the provider.
     return error ? { ok: false, error: error.message } : { ok: true };

@@ -6,7 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
-import { signInWithProvider } from '@/lib/oauth';
+import { signInWithProvider, authCallbackUrl } from '@/lib/oauth';
 import {
   AuthLayout,
   AuthInput,
@@ -78,7 +78,9 @@ export default function SignupScreen() {
         password: data.password,
         options: {
           data: { name: data.name, role: 'parent' },
-          emailRedirectTo: 'routinestars://auth/verify',
+          // Confirmation link returns to /auth/callback (web) or the app's deep
+          // link (native); there is no /auth/verify route.
+          emailRedirectTo: authCallbackUrl(),
         },
       });
 
@@ -111,7 +113,9 @@ export default function SignupScreen() {
         Alert.alert('Sign Up Failed', 'Please check your details and try again.');
         return;
       }
-      router.push('/(auth)/verify-email');
+      // Pass the address along: there's no session until it's confirmed, so the
+      // verify screen can't look it up to resend the link.
+      router.push({ pathname: '/(auth)/verify-email', params: { email: data.email } });
     } finally {
       setIsLoading(false);
     }
