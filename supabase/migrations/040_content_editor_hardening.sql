@@ -13,8 +13,15 @@
 --      runs as ONE is_admin()-gated transaction (admin_save_activity_set).
 --  [7] The save is audited (admin_audit_log).
 --
--- UNIQUE(set_id, order_index) is made DEFERRABLE so the atomic reorder can pass
--- through intermediate states and be checked once at commit.
+-- Reordering under UNIQUE(set_id, order_index) WITHOUT a deferrable constraint:
+-- every step of the set is first parked in a high band (+1,000,000), active
+-- steps are then placed at 0..n-1, and archived steps renormalised to n..n+m-1.
+-- Each stage writes values that cannot collide with any row's old value, so the
+-- immediate unique check never trips. This holds because order_index is always
+-- < 1,000,000 between saves (step 4 renormalises; live max was 9 on 2026-10-05).
+-- Being one function call, it is atomic — any error rolls the whole save back.
+-- (Supersedes an earlier draft that made the constraint DEFERRABLE, which meant
+-- removing and re-adding it; this version needs no destructive statement.)
 -- Depends on migrations 001 + 038.
 -- ============================================================
 
@@ -22,36 +29,11 @@
 ALTER TABLE public.steps
   ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
 
--- 2. Make the (set_id, order_index) uniqueness deferrable (find the existing
---    constraint by its columns, regardless of its auto-generated name).
-DO $$
-DECLARE c text;
-BEGIN
-  SELECT con.conname INTO c
-    FROM pg_constraint con
-   WHERE con.conrelid = 'public.steps'::regclass
-     AND con.contype = 'u'
-     AND (
-       -- attname is type `name`; cast to text so it compares with a text[] literal
-       -- (name[] = text[] has no operator — verified against the live DB).
-       SELECT array_agg(att.attname::text ORDER BY att.attname::text)
-         FROM unnest(con.conkey) k
-         JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = k
-     ) = ARRAY['order_index', 'set_id'];
-  IF c IS NOT NULL THEN
-    EXECUTE format('ALTER TABLE public.steps DROP CONSTRAINT %I', c);
-  END IF;
-END $$;
-
-ALTER TABLE public.steps
-  ADD CONSTRAINT steps_set_id_order_index_key
-  UNIQUE (set_id, order_index) DEFERRABLE INITIALLY IMMEDIATE;
-
--- 3. Atomic, audited, is_admin()-gated save for a built-in activity set + steps.
+-- 2. Atomic, audited, is_admin()-gated save for a built-in activity set + steps.
 --    Payload:
 --      { set_id?, set_name, icon_emoji, category, requires_approval,
 --        steps: [ { step_id?, title, instruction_text, duration_seconds,
---                   reward_stars } ] }  // steps[] = the desired ACTIVE list, in order
+--                   reward_stars } ] }  -- steps[] = the desired ACTIVE list, in order
 --    Any existing step of the set NOT present in steps[] is soft-archived.
 CREATE OR REPLACE FUNCTION public.admin_save_activity_set(p jsonb)
 RETURNS uuid
@@ -71,9 +53,6 @@ BEGIN
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'not authorised';
   END IF;
-
-  -- Defer uniqueness so the reorder can pass through intermediate collisions.
-  SET CONSTRAINTS ALL DEFERRED;
 
   SELECT COALESCE(SUM(GREATEST(0, (s->>'duration_seconds')::int)), 0)
     INTO v_total
@@ -100,11 +79,15 @@ BEGIN
      WHERE set_id = v_set_id;
   END IF;
 
-  -- 2. Tentatively archive every existing step of the set; the active ones are
-  --    re-activated below. Anything left archived was removed by the admin.
-  UPDATE public.steps SET is_active = false WHERE set_id = v_set_id;
+  -- 2. Park every existing step of the set in the high band and tentatively
+  --    archive it. All old values are < 1,000,000, so no new value can equal any
+  --    row's old value — the immediate unique check cannot trip.
+  UPDATE public.steps
+     SET order_index = order_index + 1000000,
+         is_active   = false
+   WHERE set_id = v_set_id;
 
-  -- 3. Upsert the incoming active steps into contiguous order_index 0..n-1.
+  -- 3. Upsert the incoming active steps into 0..n-1 (free: everything is parked).
   FOR v_step IN SELECT value FROM jsonb_array_elements(COALESCE(p->'steps', '[]'::jsonb))
   LOOP
     v_sid := NULLIF(v_step->>'step_id', '')::uuid;
@@ -130,10 +113,12 @@ BEGIN
     v_i := v_i + 1;
   END LOOP;
 
-  -- 4. Push the still-archived steps above the active range (unique, checked at
-  --    commit). Their step_completions history is untouched.
+  -- 4. Renormalise the still-archived (parked) steps to n..n+m-1, keeping their
+  --    relative order. Active rows hold 0..n-1 and these rows' old values are all
+  --    >= 1,000,000, so nothing collides; afterwards every value is < 1,000,000
+  --    again (the invariant step 2 relies on next time). History is untouched.
   WITH arch AS (
-    SELECT step_id, row_number() OVER (ORDER BY step_id) - 1 AS rn
+    SELECT step_id, row_number() OVER (ORDER BY order_index) - 1 AS rn
       FROM public.steps
      WHERE set_id = v_set_id AND is_active = false
   )
