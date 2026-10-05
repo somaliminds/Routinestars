@@ -76,9 +76,10 @@ jobs:
       - name: TruffleHog
         uses: trufflesecurity/trufflehog@v3.78.0
         with:
-          path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
+          # base/head deliberately omitted: the action derives them from the
+          # event (the pushed commits, or the PR's base). Setting base to the
+          # default branch made BASE == HEAD on every push to main, so the
+          # action exited "won't scan anything" and never actually scanned.
           # --only-verified means we only fail on CONFIRMED live secrets
           # (e.g. real Stripe key that authenticates against the API).
           # Cuts false-positive noise from API-key-looking strings.

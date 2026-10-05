@@ -45,7 +45,10 @@ const queryClient = new QueryClient({
 
 function AuthGuard() {
   const router = useRouter();
-  const segments = useSegments();
+  // Read as a plain string list. With generated typed routes (.expo/types —
+  // gitignored, absent in CI) useSegments() is a union of route tuples; without
+  // them it collapses to [string], making segments[1] a type error in CI only.
+  const segments = useSegments() as readonly string[];
   const { session, isLoading } = useAuthStore();
   const [role, setRole] = useState<'parent' | 'child' | 'ta' | 'professional' | 'admin' | null>(
     null,
