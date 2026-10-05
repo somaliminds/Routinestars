@@ -3,9 +3,11 @@
  *
  * Edit the shared built-in activity sets + steps that every family sees.
  * Steps are edited IN PLACE (preserving step_id) because children's completion
- * history references them; reordering is applied via a two-phase update to
- * respect UNIQUE(set_id, order_index). Admins have RLS all on activity_sets +
- * steps (migration 038).
+ * history references them; saves go through the atomic admin_save_activity_set
+ * RPC (migration 040). A set can't be deleted once scheduled (FK RESTRICT), so
+ * retiring one ARCHIVES it (migration 050): it leaves every parent picker but
+ * keeps working wherever it is already scheduled. Admin row access covers
+ * built-in content only — never a family's custom sets.
  */
 import { useState, useCallback } from 'react';
 import {
@@ -26,6 +28,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/types/database';
 import { confirmAction, notify } from '@/lib/ui-dialogs';
+import { liveFirst, setActivitySetArchived } from '@/lib/admin';
 
 const CATEGORIES = ['MORNING', 'SCHOOL', 'AFTERNOON', 'EVENING', 'WEEKEND', 'CUSTOM'] as const;
 
@@ -42,6 +45,7 @@ interface EditSet {
   icon_emoji: string;
   category: string;
   requires_approval: boolean;
+  is_archived: boolean;
   steps: EditStep[];
 }
 
@@ -52,16 +56,19 @@ interface SetRow {
   category: string;
   requires_approval: boolean;
   total_duration_mins: number;
+  is_archived: boolean;
 }
 
 async function fetchBuiltInSets(): Promise<(SetRow & { stepCount: number })[]> {
   const { data: sets, error } = await supabase
     .from('activity_sets')
-    .select('set_id, set_name, icon_emoji, category, requires_approval, total_duration_mins')
+    .select(
+      'set_id, set_name, icon_emoji, category, requires_approval, total_duration_mins, is_archived',
+    )
     .eq('is_custom', false)
     .order('category');
   if (error) throw error; // surface load failures (error + empty states are distinct)
-  const rows = (sets ?? []) as SetRow[];
+  const rows = liveFirst((sets ?? []) as SetRow[]);
   if (rows.length === 0) return [];
 
   // ONE query for every set's active steps, counted here — not a HEAD count per
@@ -86,7 +93,7 @@ async function fetchBuiltInSets(): Promise<(SetRow & { stepCount: number })[]> {
 async function loadSetForEdit(setId: string): Promise<EditSet> {
   const { data: set, error: setErr } = await supabase
     .from('activity_sets')
-    .select('set_id, set_name, icon_emoji, category, requires_approval')
+    .select('set_id, set_name, icon_emoji, category, requires_approval, is_archived')
     .eq('set_id', setId)
     .single();
   if (setErr || !set) throw setErr ?? new Error('Set not found');
@@ -103,6 +110,7 @@ async function loadSetForEdit(setId: string): Promise<EditSet> {
     icon_emoji: set.icon_emoji,
     category: set.category,
     requires_approval: set.requires_approval,
+    is_archived: set.is_archived,
     steps: (steps ?? []).map((s) => ({
       step_id: s.step_id,
       title: s.title,
@@ -147,6 +155,7 @@ const emptySet = (): EditSet => ({
   icon_emoji: '📋',
   category: 'MORNING',
   requires_approval: false,
+  is_archived: false,
   steps: [],
 });
 
@@ -165,6 +174,7 @@ export default function AdminContent() {
   });
   const [editing, setEditing] = useState<EditSet | null>(null);
   const [saving, setSaving] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   const openSet = useCallback(async (setId: string) => {
     try {
@@ -196,6 +206,42 @@ export default function AdminContent() {
       notify('Save failed', e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setSaving(false);
+    }
+  }, [editing, qc]);
+
+  // Archive/restore flips only the flag (audited server-side). The editor stays
+  // open with the new state, so any unsaved edits can still be saved.
+  const toggleArchive = useCallback(async () => {
+    if (!editing?.set_id) return;
+    const archive = !editing.is_archived;
+    const ok = await confirmAction(
+      archive
+        ? {
+            title: 'Archive this set?',
+            message: `“${editing.set_name}” will disappear from the library, the schedule builder and onboarding for every family. Children who already have it scheduled keep it. You can restore it at any time.`,
+            confirmLabel: 'Archive',
+            destructive: true,
+          }
+        : {
+            title: 'Restore this set?',
+            message: `“${editing.set_name}” will be available to every family again.`,
+            confirmLabel: 'Restore',
+          },
+    );
+    if (!ok) return;
+    setArchiving(true);
+    try {
+      await setActivitySetArchived(editing.set_id, archive);
+      setEditing((e) => (e ? { ...e, is_archived: archive } : e));
+      void qc.invalidateQueries({ queryKey: ['adminBuiltInSets'] });
+      void qc.invalidateQueries({ queryKey: ['adminOverview'] });
+    } catch (e) {
+      notify(
+        archive ? 'Archive failed' : 'Restore failed',
+        e instanceof Error ? e.message : 'Unknown error',
+      );
+    } finally {
+      setArchiving(false);
     }
   }, [editing, qc]);
 
@@ -268,12 +314,19 @@ export default function AdminContent() {
           sets.map((s) => (
             <TouchableOpacity
               key={s.set_id}
-              style={styles.setCard}
+              style={[styles.setCard, s.is_archived && styles.setCardArchived]}
               onPress={() => void openSet(s.set_id)}
             >
               <Text style={styles.setEmoji}>{s.icon_emoji}</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.setName}>{s.set_name}</Text>
+                <View style={styles.setNameRow}>
+                  <Text style={styles.setName}>{s.set_name}</Text>
+                  {s.is_archived && (
+                    <View style={styles.archivedPill}>
+                      <Text style={styles.archivedPillText}>Archived</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.setMeta}>
                   {s.category} · {s.stepCount} steps · {s.total_duration_mins} min
                   {s.requires_approval ? ' · approval' : ''}
@@ -300,6 +353,14 @@ export default function AdminContent() {
                 </TouchableOpacity>
               </View>
               <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+                {editing.is_archived && (
+                  <View style={styles.archivedBanner}>
+                    <Text style={styles.archivedBannerText}>
+                      Archived — hidden from every family’s library, schedule builder and
+                      onboarding. Routines that already include it keep working.
+                    </Text>
+                  </View>
+                )}
                 <Text style={styles.fieldLabel}>Name</Text>
                 <TextInput
                   style={styles.input}
@@ -426,6 +487,21 @@ export default function AdminContent() {
                 <TouchableOpacity style={styles.addStep} onPress={addStep}>
                   <Text style={styles.addStepText}>+ Add step</Text>
                 </TouchableOpacity>
+
+                {!!editing.set_id && (
+                  <TouchableOpacity
+                    style={[styles.archiveBtn, editing.is_archived && styles.restoreBtn]}
+                    onPress={() => void toggleArchive()}
+                    disabled={archiving}
+                    accessibilityRole="button"
+                  >
+                    <Text
+                      style={[styles.archiveBtnText, editing.is_archived && styles.restoreBtnText]}
+                    >
+                      {archiving ? '…' : editing.is_archived ? 'Restore set' : 'Archive set'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
             </SafeAreaView>
           </View>
@@ -480,8 +556,42 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
   },
+  setCardArchived: { backgroundColor: '#F8FAFC', borderStyle: 'dashed' },
   setEmoji: { fontSize: 26 },
+  setNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   setName: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#101B2D' },
+  archivedPill: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  archivedPillText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#475569' },
+  archivedBanner: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 4,
+  },
+  archivedBannerText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: '#78350F',
+    lineHeight: 18,
+  },
+  archiveBtn: {
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 28,
+  },
+  archiveBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 14, color: '#B91C1C' },
+  restoreBtn: { borderColor: '#7C3AED' },
+  restoreBtnText: { color: '#7C3AED' },
   setMeta: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#5A6B80', marginTop: 2 },
   arrow: { fontFamily: 'Inter_600SemiBold', fontSize: 22, color: '#94A2B4' },
   fieldLabel: {

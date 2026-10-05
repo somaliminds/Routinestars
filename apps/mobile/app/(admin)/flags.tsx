@@ -3,7 +3,7 @@
  *
  * Toggle the app_config flags (maintenance mode, AI kill-switch, signups) at
  * runtime without a redeploy. Boolean flags render as switches; every change
- * is persisted + audited via setConfig.
+ * is persisted + audited in one transaction via setConfig (admin_set_config).
  */
 import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Switch, ActivityIndicator, StyleSheet } from 'react-native';
@@ -11,14 +11,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '@/stores/auth.store';
 import { fetchConfig, setConfig, type AppConfigRow } from '@/lib/admin';
 import { notify } from '@/lib/ui-dialogs';
 
 export default function AdminFlags() {
   const router = useRouter();
   const qc = useQueryClient();
-  const adminId = useAuthStore((s) => s.session?.user.id ?? '');
   const [saving, setSaving] = useState<string | null>(null);
 
   const { data: flags = [], isLoading } = useQuery<AppConfigRow[]>({
@@ -30,13 +28,13 @@ export default function AdminFlags() {
     (row: AppConfigRow, next: boolean) => {
       setSaving(row.key);
       void (async () => {
-        const { error } = await setConfig(adminId, row.key, next);
+        const { error } = await setConfig(row.key, next);
         if (error) notify('Could not save', error);
         await qc.invalidateQueries({ queryKey: ['adminConfig'] });
         setSaving(null);
       })();
     },
-    [adminId, qc],
+    [qc],
   );
 
   return (

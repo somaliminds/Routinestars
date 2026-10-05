@@ -106,6 +106,9 @@ export type Database = {
           is_custom: boolean;
           created_by_parent_id: string | null;
           created_at: string;
+          // Retired built-in set (migration 050): hidden from pickers only;
+          // anything already scheduled still resolves by set_id.
+          is_archived: boolean;
         };
         Insert: {
           set_id?: string;
@@ -117,6 +120,7 @@ export type Database = {
           requires_approval?: boolean;
           is_custom?: boolean;
           created_by_parent_id?: string | null;
+          is_archived?: boolean;
         };
         Update: {
           set_name?: string;
@@ -125,6 +129,7 @@ export type Database = {
           colour_theme?: string;
           total_duration_mins?: number;
           requires_approval?: boolean;
+          is_archived?: boolean;
         };
         Relationships: [];
       };
@@ -857,6 +862,18 @@ export type Database = {
       admin_save_activity_set: {
         Args: { p: Json };
         Returns: string;
+      };
+      admin_set_activity_set_archived: {
+        Args: { p_set_id: string; p_archived: boolean };
+        Returns: undefined;
+      };
+      admin_set_config: {
+        Args: { p_key: string; p_value: Json };
+        Returns: undefined;
+      };
+      reorder_set_steps: {
+        Args: { p_set_id: string; p_step_ids: string[] };
+        Returns: undefined;
       };
       signups_enabled: {
         Args: Record<string, never>;

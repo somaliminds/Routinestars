@@ -3,9 +3,11 @@
  *
  * Privacy boundary: nothing here can read an individual child's
  * special-category data. Metrics come from the admin_overview_metrics RPC
- * (aggregate counts only); operational reads/writes go through RLS policies
- * gated by is_admin() (which requires aal2 / MFA). Every mutating action is
- * written to admin_audit_log.
+ * (aggregate counts only); operational reads go through RLS policies gated by
+ * is_admin() (which requires aal2 / MFA). Every mutating action is written to
+ * admin_audit_log in the SAME transaction as the change — by an is_admin()-gated
+ * RPC (flags, content) or the admin-users edge function (users/plans) — so a
+ * change can never land without its audit row.
  */
 import { supabase } from './supabase';
 import type { Database, Json } from '@/types/database';
@@ -40,25 +42,6 @@ export async function fetchOverviewMetrics(): Promise<OverviewMetrics | null> {
   return data as unknown as OverviewMetrics;
 }
 
-/** Append an admin action to the audit trail (best-effort, never throws). */
-export async function logAdminAction(
-  adminId: string,
-  action: string,
-  target?: { type?: string; id?: string; detail?: Json },
-): Promise<void> {
-  try {
-    await supabase.from('admin_audit_log').insert({
-      admin_id: adminId,
-      action,
-      target_type: target?.type ?? null,
-      target_id: target?.id ?? null,
-      detail: target?.detail ?? null,
-    });
-  } catch (e) {
-    console.warn('[admin] audit insert failed:', e);
-  }
-}
-
 // ── Feature flags / config ───────────────────────────────────────────────────
 
 export async function fetchConfig(): Promise<AppConfigRow[]> {
@@ -66,19 +49,34 @@ export async function fetchConfig(): Promise<AppConfigRow[]> {
   return data ?? [];
 }
 
-/** Set a config flag + audit it. */
-export async function setConfig(
-  adminId: string,
-  key: string,
-  value: Json,
-): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from('app_config')
-    .update({ value, updated_by: adminId, updated_at: new Date().toISOString() })
-    .eq('key', key);
-  if (error) return { error: error.message };
-  await logAdminAction(adminId, 'SET_FLAG', { type: 'config', id: key, detail: value });
-  return { error: null };
+/**
+ * Set a config flag. admin_set_config (migration 050) writes the change AND its
+ * audit row in one transaction; it used to be two client calls, and since
+ * postgrest never throws, a failed audit insert went unnoticed.
+ */
+export async function setConfig(key: string, value: Json): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('admin_set_config', { p_key: key, p_value: value });
+  return { error: error ? error.message : null };
+}
+
+// ── Built-in content ─────────────────────────────────────────────────────────
+
+/**
+ * Archive (retire) or restore a built-in activity set (migration 050). Archived
+ * sets vanish from every place a parent PICKS a set; anything already scheduled
+ * still resolves by set_id. Audited server-side; throws on failure.
+ */
+export async function setActivitySetArchived(setId: string, archived: boolean): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_activity_set_archived', {
+    p_set_id: setId,
+    p_archived: archived,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Admin content list order: live sets first, archived last; stable otherwise. */
+export function liveFirst<T extends { is_archived: boolean }>(sets: readonly T[]): T[] {
+  return [...sets.filter((s) => !s.is_archived), ...sets.filter((s) => s.is_archived)];
 }
 
 /** Read a single flag value with a typed fallback (used app-wide, not just admin). */

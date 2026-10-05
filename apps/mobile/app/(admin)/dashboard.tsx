@@ -101,7 +101,7 @@ export default function AdminDashboard() {
             <View style={styles.grid}>
               <Stat value={m.completions_7d} label="Completions (7d)" />
               <Stat value={m.consents_active} label="Active pro consents" />
-              <Stat value={m.activity_sets_builtin} label="Built-in sets" />
+              <Stat value={m.activity_sets_builtin} label="Built-in sets (live)" />
               <Stat value={m.activity_sets_custom} label="Custom sets" />
             </View>
 

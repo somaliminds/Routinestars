@@ -100,11 +100,15 @@ async function fetchWeekSchedule(childId: string, weekStart: Date): Promise<Week
   };
 }
 
+// The "Add activity" palette: what a parent can pick for NEW scheduling, so
+// archived (retired) built-in sets are left out. Already-scheduled sets are
+// resolved by set_id elsewhere and keep working.
 async function fetchActivitySets(parentId: string): Promise<ActivitySetRow[]> {
   const { data, error } = await supabase
     .from('activity_sets')
     .select('*')
     .or(`is_custom.eq.false,created_by_parent_id.eq.${parentId}`)
+    .eq('is_archived', false)
     .order('category')
     .order('set_name');
   if (error) throw error;

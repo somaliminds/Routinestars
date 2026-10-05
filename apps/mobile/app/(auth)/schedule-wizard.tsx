@@ -85,6 +85,7 @@ export default function ScheduleWizardScreen() {
         .from('activity_sets')
         .select('set_id, set_name, icon_emoji, total_duration_mins')
         .eq('is_custom', false)
+        .eq('is_archived', false) // never suggest a retired set
         .order('set_name');
 
       const sets = (setsData ?? []) as unknown as ActivitySetOption[];
