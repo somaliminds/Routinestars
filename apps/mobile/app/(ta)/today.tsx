@@ -340,9 +340,11 @@ export default function TaTodayScreen() {
             </View>
             <ScrollView contentContainerStyle={{ padding: 16 }}>
               <Text style={styles.modalSection}>Steps in this activity</Text>
-              {steps.map((s) => (
+              {steps.map((s, i) => (
                 <View key={s.step_id} style={styles.stepRow}>
-                  <Text style={styles.stepNumber}>{s.order_index + 1}</Text>
+                  {/* Position, not order_index: indices are only an ordering key
+                      (built-in sets start at 1, edited/new sets at 0). */}
+                  <Text style={styles.stepNumber}>{i + 1}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.stepTitle}>{s.title}</Text>
                     <Text style={styles.stepMeta}>

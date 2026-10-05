@@ -42,6 +42,7 @@ import {
 } from '@/stores/subscription.store';
 import { supabase } from '@/lib/supabase';
 import { quotaMessageFor } from '@/lib/quota-errors';
+import { nextStepIndex, saveStepOrder } from '@/lib/step-order';
 import type { ActivitySetRow, StepRow } from '@/types/database';
 import { useResponsive } from '@/hooks/useResponsive';
 import { OutcomeLinker } from '@/components/parent/OutcomeLinker';
@@ -88,22 +89,36 @@ async function fetchActivitySetsWithSteps(
     .from('activity_sets')
     .select('*')
     .or(`is_custom.eq.false,created_by_parent_id.eq.${parentId}`)
+    .eq('is_archived', false) // retired built-in sets leave the library
     .order('is_custom')
     .order('category')
     .order('set_name');
 
   if (error) throw error;
+  const setRows = (sets ?? []) as ActivitySetRow[];
+  if (setRows.length === 0) return [];
 
-  const result: { set: ActivitySetRow; steps: StepRow[] }[] = [];
-  for (const set of sets ?? []) {
-    const { data: steps } = await supabase
-      .from('steps')
-      .select('*')
-      .eq('set_id', set.set_id)
-      .order('order_index');
-    result.push({ set: set as ActivitySetRow, steps: (steps ?? []) as StepRow[] });
+  // ONE request for every set's steps (it was one request per set, errors
+  // ignored), active steps only: a step an admin retired from a built-in set
+  // must not reappear here or in a parent's copy of the set.
+  const { data: steps, error: stepsErr } = await supabase
+    .from('steps')
+    .select('*')
+    .in(
+      'set_id',
+      setRows.map((s) => s.set_id),
+    )
+    .eq('is_active', true)
+    .order('order_index');
+  if (stepsErr) throw stepsErr;
+
+  const bySet = new Map<string, StepRow[]>();
+  for (const step of (steps ?? []) as StepRow[]) {
+    const list = bySet.get(step.set_id);
+    if (list) list.push(step);
+    else bySet.set(step.set_id, [step]);
   }
-  return result;
+  return setRows.map((set) => ({ set, steps: bySet.get(set.set_id) ?? [] }));
 }
 
 // ── Step Editor Modal ────────────────────────────────────────────────────────
@@ -588,12 +603,12 @@ function ActivitySetModal({
           })
           .select('set_id')
           .single();
-        if (error || !newSet) throw error;
+        if (error || !newSet) throw error ?? new Error('Set not created');
         setId = newSet.set_id;
 
         // Insert all steps
         if (steps.length > 0) {
-          await supabase.from('steps').insert(
+          const { error: stepsErr } = await supabase.from('steps').insert(
             steps.map((s, i) => ({
               set_id: setId!,
               order_index: i,
@@ -603,9 +618,15 @@ function ActivitySetModal({
               reward_stars: s.reward_stars,
             })),
           );
+          if (stepsErr) {
+            // Don't leave an empty half-saved set behind; the modal stays open
+            // with every step intact so the parent can simply retry.
+            await supabase.from('activity_sets').delete().eq('set_id', setId);
+            throw stepsErr;
+          }
         }
       } else {
-        await supabase
+        const { error: updateErr } = await supabase
           .from('activity_sets')
           .update({
             ...parsed.data,
@@ -614,13 +635,19 @@ function ActivitySetModal({
             ),
           })
           .eq('set_id', setId!);
+        if (updateErr) throw updateErr;
       }
       onSaved();
       onClose();
     } catch (err) {
       setIsSaving(false);
+      // postgrest returns errors instead of throwing — every one is thrown above,
+      // so a failed save always tells the parent instead of silently stopping.
       const quota = quotaMessageFor(err);
-      if (quota) Alert.alert(quota.title, quota.body);
+      Alert.alert(
+        quota?.title ?? 'Could not save',
+        quota?.body ?? 'Please check your connection and try again.',
+      );
     }
   }, [
     setName,
@@ -642,61 +669,83 @@ function ActivitySetModal({
 
       const setId = item?.set.set_id;
 
-      if (stepIsNew || !setId) {
-        // Local-only (new set) or new step for existing set
-        const tempStep: StepRow = {
-          step_id: `temp-${Date.now()}`,
-          set_id: setId ?? '',
-          order_index: steps.length,
-          title: data.title,
-          instruction_text: data.instruction_text,
-          audio_url: null,
-          illustration_url: null,
-          duration_seconds: data.duration_seconds,
-          reward_stars: data.reward_stars,
-          is_active: true,
-        };
+      // Was `stepIsNew || !setId`, so while creating a new set, editing a step
+      // already added APPENDED a duplicate instead of updating it.
+      if (stepIsNew) {
         if (setId) {
-          // Persist immediately for existing sets
-          const { data: newStep } = await supabase
+          // Persist immediately for existing sets — one past the HIGHEST index,
+          // not steps.length (see step-order.ts). On failure keep the step
+          // editor open with what was typed; never show a step that wasn't saved.
+          const { data: newStep, error } = await supabase
             .from('steps')
-            .insert({ set_id: setId, order_index: steps.length, ...data })
+            .insert({ set_id: setId, order_index: nextStepIndex(steps), ...data })
             .select('*')
             .single();
-          setSteps((prev) => [...prev, (newStep as StepRow) ?? tempStep]);
+          if (error || !newStep) {
+            Alert.alert('Could not add step', 'Please check your connection and try again.');
+            return;
+          }
+          setSteps((prev) => [...prev, newStep as StepRow]);
+          onSaved();
         } else {
+          // Local-only until the new set is saved (inserted then at 0..n-1).
+          const tempStep: StepRow = {
+            step_id: `temp-${Date.now()}`,
+            set_id: '',
+            order_index: nextStepIndex(steps),
+            title: data.title,
+            instruction_text: data.instruction_text,
+            audio_url: null,
+            illustration_url: null,
+            duration_seconds: data.duration_seconds,
+            reward_stars: data.reward_stars,
+            is_active: true,
+          };
           setSteps((prev) => [...prev, tempStep]);
         }
       } else {
         // Update existing step
         if (step.step_id && !step.step_id.startsWith('temp-')) {
-          await supabase.from('steps').update(data).eq('step_id', step.step_id);
+          const { error } = await supabase.from('steps').update(data).eq('step_id', step.step_id);
+          if (error) {
+            Alert.alert('Could not save step', 'Please check your connection and try again.');
+            return;
+          }
+          onSaved();
         }
         setSteps((prev) => prev.map((s) => (s.step_id === step.step_id ? { ...s, ...data } : s)));
       }
       setEditingStep(null);
     },
-    [editingStep, steps, item],
+    [editingStep, steps, item, onSaved],
   );
 
-  const handleStepDelete = useCallback(async (step: StepRow) => {
-    Alert.alert('Delete Step', `Delete "${step.title}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          if (!step.step_id.startsWith('temp-')) {
-            await supabase.from('steps').delete().eq('step_id', step.step_id);
-          }
-          // Drop any local photo the parent had attached for this step.
-          await removeLocalIllustration(step.step_id);
-          setSteps((prev) => prev.filter((s) => s.step_id !== step.step_id));
-          setEditingStep(null);
+  const handleStepDelete = useCallback(
+    async (step: StepRow) => {
+      Alert.alert('Delete Step', `Delete "${step.title}"?`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!step.step_id.startsWith('temp-')) {
+              const { error } = await supabase.from('steps').delete().eq('step_id', step.step_id);
+              if (error) {
+                Alert.alert('Could not delete step', 'Please check your connection and try again.');
+                return;
+              }
+              onSaved();
+            }
+            // Drop any local photo the parent had attached for this step.
+            await removeLocalIllustration(step.step_id);
+            setSteps((prev) => prev.filter((s) => s.step_id !== step.step_id));
+            setEditingStep(null);
+          },
         },
-      },
-    ]);
-  }, []);
+      ]);
+    },
+    [onSaved],
+  );
 
   const moveStep = useCallback(
     async (idx: number, direction: -1 | 1) => {
@@ -705,23 +754,27 @@ function ActivitySetModal({
       if (target < 0 || target >= newSteps.length) return;
       [newSteps[idx], newSteps[target]] = [newSteps[target]!, newSteps[idx]!];
 
-      // Update order_index locally
-      const updated = newSteps.map((s, i) => ({ ...s, order_index: i }));
-      setSteps(updated);
+      // Update locally first (snappy), matching the 0..n-1 the server writes.
+      const previous = steps;
+      setSteps(newSteps.map((s, i) => ({ ...s, order_index: i })));
 
-      // Persist if real set
-      if (item?.set.set_id) {
-        for (const s of updated) {
-          if (!s.step_id.startsWith('temp-')) {
-            await supabase
-              .from('steps')
-              .update({ order_index: s.order_index })
-              .eq('step_id', s.step_id);
-          }
+      // Persist if real set — ONE atomic call. Updating each step's index one by
+      // one collided with UNIQUE(set_id, order_index), so moves never saved.
+      const setId = item?.set.set_id;
+      if (setId) {
+        try {
+          await saveStepOrder(
+            setId,
+            newSteps.filter((s) => !s.step_id.startsWith('temp-')).map((s) => s.step_id),
+          );
+          onSaved();
+        } catch {
+          setSteps(previous);
+          Alert.alert('Could not reorder', 'The new order was not saved. Please try again.');
         }
       }
     },
-    [steps, item],
+    [steps, item, onSaved],
   );
 
   return (
@@ -1014,9 +1067,12 @@ export default function ActivitySetsScreen() {
           const { data: inserted, error: stepsErr } = await supabase
             .from('steps')
             .insert(
-              item.steps.map((s) => ({
+              // item.steps is the set's active steps in order. Index by
+              // position: copying the built-in's 1-based indices made copies
+              // whose next "add step" collided with the last step.
+              item.steps.map((s, i) => ({
                 set_id: newSet.set_id,
-                order_index: s.order_index,
+                order_index: i,
                 title: s.title,
                 instruction_text: s.instruction_text,
                 duration_seconds: s.duration_seconds,
