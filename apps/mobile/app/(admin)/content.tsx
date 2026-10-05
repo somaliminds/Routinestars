@@ -62,17 +62,25 @@ async function fetchBuiltInSets(): Promise<(SetRow & { stepCount: number })[]> {
     .order('category');
   if (error) throw error; // surface load failures (error + empty states are distinct)
   const rows = (sets ?? []) as SetRow[];
-  const withCounts = await Promise.all(
-    rows.map(async (s) => {
-      const { count } = await supabase
-        .from('steps')
-        .select('step_id', { count: 'exact', head: true })
-        .eq('set_id', s.set_id)
-        .eq('is_active', true); // archived steps don't count
-      return { ...s, stepCount: count ?? 0 };
-    }),
-  );
-  return withCounts;
+  if (rows.length === 0) return [];
+
+  // ONE query for every set's active steps, counted here — not a HEAD count per
+  // set. The old per-set burst (14 parallel requests) hit the 8s statement
+  // timeout on a loaded instance, and since the error was ignored every set
+  // silently showed "0 steps". Errors now throw -> the screen's Retry state.
+  const { data: stepRows, error: stepsErr } = await supabase
+    .from('steps')
+    .select('set_id')
+    .in(
+      'set_id',
+      rows.map((s) => s.set_id),
+    )
+    .eq('is_active', true); // archived steps don't count
+  if (stepsErr) throw stepsErr;
+
+  const counts = new Map<string, number>();
+  for (const s of stepRows ?? []) counts.set(s.set_id, (counts.get(s.set_id) ?? 0) + 1);
+  return rows.map((s) => ({ ...s, stepCount: counts.get(s.set_id) ?? 0 }));
 }
 
 async function loadSetForEdit(setId: string): Promise<EditSet> {

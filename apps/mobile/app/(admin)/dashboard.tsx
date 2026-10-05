@@ -88,7 +88,7 @@ export default function AdminDashboard() {
               <Stat value={m.subs_canceled_30d} label="Cancelled (30d)" />
             </View>
             <View style={styles.card}>
-              <Text style={styles.cardLabel}>Active subscriptions by plan</Text>
+              <Text style={styles.cardLabel}>Accounts by plan</Text>
               {(['FREE', 'STARTER', 'FAMILY', 'SCHOOL'] as const).map((p) => (
                 <View key={p} style={styles.planRow}>
                   <Text style={styles.planName}>{p}</Text>
