@@ -32,7 +32,9 @@ BEGIN
    WHERE con.conrelid = 'public.steps'::regclass
      AND con.contype = 'u'
      AND (
-       SELECT array_agg(att.attname ORDER BY att.attname)
+       -- attname is type `name`; cast to text so it compares with a text[] literal
+       -- (name[] = text[] has no operator — verified against the live DB).
+       SELECT array_agg(att.attname::text ORDER BY att.attname::text)
          FROM unnest(con.conkey) k
          JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = k
      ) = ARRAY['order_index', 'set_id'];
