@@ -177,11 +177,11 @@ serve(async (req) => {
       });
     }
 
-    // Authorisation — verify the caller is either the child themselves
-    // (auto-approve flow) or the child's parent (post-approval flow).
-    // The gateway already validated the JWT (verify_jwt = true), but
-    // without this check any authenticated user could award badges and
-    // bump star counts on any child profile.
+    // Authorisation — verify the caller is the child themselves (auto-approve
+    // flow), the child's parent, or an accepted care-team Approver for this
+    // child (post-approval flow; migrations 053/054). The gateway already
+    // validated the JWT (verify_jwt = true), but without this check any
+    // authenticated user could award badges and bump star counts on any child.
     const authHeader = req.headers.get('Authorization') ?? '';
     if (!authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
@@ -220,8 +220,21 @@ serve(async (req) => {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    const isOwner = childRow.parent_id === callerId || childRow.user_id === callerId;
-    if (!isOwner) {
+    let isAuthorised = childRow.parent_id === callerId || childRow.user_id === callerId;
+    const callerEmail = authData.user.email?.toLowerCase();
+    if (!isAuthorised && callerEmail) {
+      // Invite emails are stored normalised (lower-case) since migration 053.
+      const { data: approver } = await supabase
+        .from('care_team_members')
+        .select('member_id')
+        .eq('child_id', child_id)
+        .eq('email', callerEmail)
+        .eq('role', 'approver')
+        .not('accepted_at', 'is', null)
+        .maybeSingle();
+      isAuthorised = !!approver;
+    }
+    if (!isAuthorised) {
       console.warn('[reward-engine] authorisation denied', { caller: callerId, child_id });
       return new Response(JSON.stringify({ error: 'forbidden: not authorised for this child' }), {
         status: 403,
@@ -230,11 +243,14 @@ serve(async (req) => {
     }
 
     // ── Load completion + scheduled set info ────────────────────────────────
+    // Scoped to THIS child: an authorised caller must not be able to run the
+    // engine for their child against another child's completion.
     const { data: completion } = await supabase
       .from('completions')
       .select('completed_at, stars_earned, scheduled_set_id')
       .eq('completion_id', completion_id)
-      .single();
+      .eq('child_id', child_id)
+      .maybeSingle();
 
     if (!completion?.completed_at) {
       return new Response(JSON.stringify({ error: 'Completion not finalised' }), { status: 400 });

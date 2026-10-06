@@ -1,105 +1,145 @@
 /**
  * send-care-invite — Supabase Edge Function
  *
- * Sends a branded invitation email via Resend when a parent adds a
- * teacher / therapist / family member to their care team.
+ * Emails the person a parent has just added to a child's care team.
  *
- * Body: { invitee_email, parent_name, child_name, role: 'view_only'|'approver' }
+ * Body: { member_id } — the care_team_members row the parent just created.
+ * The recipient, child's name, inviter's name and role all come from the
+ * DATABASE, never from the request, and the caller must be the parent who owns
+ * that row. (Until Oct 2026 the function trusted invitee_email / parent_name /
+ * child_name from the body and put them in the HTML unescaped, so any signed-in
+ * account could send branded RoutineStars email with any content to anyone.)
+ *
  * Returns: { sent: true } | { sent: false, reason: string }
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.99.0';
 
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
 
-interface RequestBody {
-  invitee_email?: string;
-  parent_name?: string;
-  child_name?: string;
-  role?: 'view_only' | 'approver';
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: CORS });
+
+/** Escape text for safe use inside the HTML email. */
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+type Role = 'view_only' | 'approver' | 'school_ta';
+
+function roleCopy(role: Role, child: string): { label: string; description: string } {
+  if (role === 'approver') {
+    return {
+      label: 'Approver',
+      description: `You can see ${child}'s daily routine and progress, and approve activities when ${child} finishes them.`,
+    };
+  }
+  if (role === 'school_ta') {
+    return {
+      label: 'School TA',
+      description: `You can see ${child}'s routine for the school day and mark activities done at school.`,
+    };
+  }
+  return {
+    label: 'Viewer',
+    description: `You can see ${child}'s daily routine, progress and badges.`,
+  };
 }
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: CORS,
-    });
-  }
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
-    const body = (await req.json()) as RequestBody;
-    const { invitee_email, parent_name, child_name, role } = body;
+    // 1. Who is asking?
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) return json({ sent: false, reason: 'unauthorized' }, 401);
+    const url = Deno.env.get('SUPABASE_URL')!;
+    const asUser = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: authData, error: authErr } = await asUser.auth.getUser();
+    if (authErr || !authData?.user) return json({ sent: false, reason: 'unauthorized' }, 401);
+    const callerId = authData.user.id;
 
-    if (!invitee_email || !invitee_email.includes('@')) {
-      return new Response(JSON.stringify({ sent: false, reason: 'Invalid email' }), {
-        status: 400,
-        headers: CORS,
-      });
+    const { member_id } = (await req.json()) as { member_id?: string };
+    if (!member_id) return json({ sent: false, reason: 'member_id is required' }, 400);
+
+    // 2. The invite must exist and belong to the caller. Same answer for "no
+    //    such invite" and "not yours", so the endpoint can't probe ids.
+    const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const { data: member } = await admin
+      .from('care_team_members')
+      .select('email, role, parent_id, child_id')
+      .eq('member_id', member_id)
+      .maybeSingle();
+    if (!member || member.parent_id !== callerId) {
+      return json({ sent: false, reason: 'not found' }, 404);
     }
+
+    const [{ data: childRow }, { data: parentRow }] = await Promise.all([
+      admin.from('child_profiles').select('child_name').eq('profile_id', member.child_id).maybeSingle(),
+      admin.from('users').select('name').eq('user_id', callerId).maybeSingle(),
+    ]);
+    const child = (childRow?.child_name as string | undefined)?.trim() || 'their child';
+    const parent = (parentRow?.name as string | undefined)?.trim() || 'A parent';
+    const { label, description } = roleCopy(member.role as Role, child);
 
     const resendKey = Deno.env.get('RESEND_API_KEY') ?? '';
     const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') ?? 'noreply@routinestars.co.uk';
-
     if (!resendKey || resendKey.startsWith('re_your')) {
       console.error('[send-care-invite] RESEND_API_KEY not configured');
-      return new Response(JSON.stringify({ sent: false, reason: 'Email service not configured' }), {
-        status: 500,
-        headers: CORS,
-      });
+      return json({ sent: false, reason: 'Email service not configured' }, 500);
     }
 
-    const parent = parent_name ?? 'A parent';
-    const child = child_name ?? 'their child';
-    const roleLabel = role === 'approver' ? 'Approver' : 'Viewer';
-    const roleDescription =
-      role === 'approver'
-        ? `You can view ${child}'s progress AND approve their completed activities.`
-        : `You can view ${child}'s progress and reports.`;
-
-    const html = buildInviteEmail({ parent, child, roleLabel, roleDescription });
+    const html = buildInviteEmail({
+      parent: esc(parent),
+      child: esc(child),
+      roleLabel: esc(label),
+      roleDescription: esc(description),
+      email: esc(member.email as string),
+    });
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: `RoutineStars <${fromEmail}>`,
-        to: invitee_email,
+        to: member.email,
         subject: `${parent} has invited you to ${child}'s care team`,
         html,
       }),
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      console.error('[send-care-invite] Resend error:', res.status, errText);
-      return new Response(JSON.stringify({ sent: false, reason: `Resend ${res.status}` }), {
-        status: 200,
-        headers: CORS,
-      });
+      console.error('[send-care-invite] Resend error:', res.status, await res.text());
+      return json({ sent: false, reason: `Resend ${res.status}` });
     }
-
-    return new Response(JSON.stringify({ sent: true }), { status: 200, headers: CORS });
+    return json({ sent: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Internal error';
-    console.error('[send-care-invite] handler error:', msg);
-    return new Response(JSON.stringify({ sent: false, reason: msg }), {
-      status: 500,
-      headers: CORS,
-    });
+    console.error('[send-care-invite] handler error:', err instanceof Error ? err.message : err);
+    return json({ sent: false, reason: 'Internal error' }, 500);
   }
 });
 
-// ── Email template ────────────────────────────────────────────────────────────
+// ── Email template (every interpolated value is pre-escaped) ─────────────────
 function buildInviteEmail(d: {
   parent: string;
   child: string;
   roleLabel: string;
   roleDescription: string;
+  email: string;
 }): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -147,7 +187,7 @@ function buildInviteEmail(d: {
               </div>
 
               <p style="margin:0 0 20px 0;font-size:16px;line-height:1.6;color:#374151;">
-                <strong>What now?</strong> Download RoutineStars and sign up using this exact email address. We'll automatically link you to ${d.child}'s care team.
+                <strong>What now?</strong> Get RoutineStars and sign up (or sign in) with <strong>${d.email}</strong> — the address this invitation was sent to. We'll link you to ${d.child}'s care team automatically.
               </p>
 
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">

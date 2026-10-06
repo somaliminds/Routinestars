@@ -2,8 +2,9 @@
  * notify-parent — Sprint 2.4
  * Supabase Edge Function (Deno runtime)
  *
- * Sends an Expo Push Notification to the parent when their child
- * completes an activity set that requires approval.
+ * Sends an Expo Push Notification to the parent — and to the child's
+ * accepted care-team Approvers (migration 053) — when the child completes an
+ * activity set that requires approval.
  *
  * Request body:
  *   { child_id: string, completion_id: string, set_name: string, child_name: string }
@@ -107,33 +108,36 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 2. Get the parent's push token
-    const { data: parentProfile, error: parentErr } = await supabase
+    // 2. Who should hear about it: the parent, plus every accepted care-team
+    //    Approver for this child (migration 053; service-role-only RPC). A
+    //    missing token just means that person hasn't enabled notifications.
+    const tokens = new Set<string>();
+    const { data: parentProfile } = await supabase
       .from('parent_profiles')
       .select('expo_push_token')
       .eq('user_id', childProfile.parent_id)
-      .single();
+      .maybeSingle();
+    const parentToken = parentProfile?.expo_push_token as string | null | undefined;
+    if (parentToken && parentToken.startsWith('ExponentPushToken[')) tokens.add(parentToken);
 
-    if (parentErr || !parentProfile) {
-      return new Response(
-        JSON.stringify({ error: 'Parent profile not found', sent: false }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } },
-      );
+    const { data: approverRows, error: approverErr } = await supabase.rpc('approver_push_tokens', {
+      p_child_id: child_id,
+    });
+    if (approverErr) console.warn('[notify-parent] approver lookup failed:', approverErr.message);
+    for (const row of (approverRows ?? []) as { expo_push_token: string | null }[]) {
+      if (row.expo_push_token) tokens.add(row.expo_push_token);
     }
 
-    const pushToken = parentProfile.expo_push_token;
-
-    if (!pushToken || !pushToken.startsWith('ExponentPushToken[')) {
-      // No token registered — not an error, parent just hasn't enabled notifications
+    if (tokens.size === 0) {
       return new Response(
-        JSON.stringify({ sent: false, reason: 'No push token registered for parent' }),
+        JSON.stringify({ sent: false, reason: 'No push token registered' }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       );
     }
 
-    // 3. Send via Expo Push API
-    const message: ExpoPushMessage = {
-      to: pushToken,
+    // 3. Send via Expo Push API (one message per device, in a single request)
+    const messages: ExpoPushMessage[] = [...tokens].map((to) => ({
+      to,
       sound: 'default',
       title: `⭐ ${child_name} needs your approval!`,
       body: `${child_name} finished "${set_name}" — tap to review and approve.`,
@@ -143,7 +147,7 @@ Deno.serve(async (req: Request) => {
         child_id,
       },
       priority: 'high',
-    };
+    }));
 
     const expoRes = await fetch(EXPO_PUSH_URL, {
       method: 'POST',
@@ -152,7 +156,7 @@ Deno.serve(async (req: Request) => {
         'Accept-Encoding': 'gzip, deflate',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(message),
+      body: JSON.stringify(messages),
     });
 
     const ticket = await expoRes.json();
