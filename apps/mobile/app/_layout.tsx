@@ -20,7 +20,12 @@ import { useSyncPending } from '@/hooks/useSyncPending';
 import { usePinGate } from '@/stores/pinGate.store';
 import { supabase } from '@/lib/supabase';
 import { initSentry, setSentryUser, Sentry } from '@/lib/sentry';
-import { deriveRoleFromBoot, type BootContext, type ResolvedRole } from '@/lib/boot-role';
+import {
+  deriveRoleFromBoot,
+  type BootContext,
+  type BootRole,
+  type ResolvedRole,
+} from '@/lib/boot-role';
 import { initI18n, changeLanguage } from '@/i18n';
 import { useLanguageStore } from '@/stores/language.store';
 import { MaintenanceGate } from '@/components/MaintenanceGate';
@@ -50,9 +55,7 @@ function AuthGuard() {
   // them it collapses to [string], making segments[1] a type error in CI only.
   const segments = useSegments() as readonly string[];
   const { session, isLoading } = useAuthStore();
-  const [role, setRole] = useState<'parent' | 'child' | 'ta' | 'professional' | 'admin' | null>(
-    null,
-  );
+  const [role, setRole] = useState<BootRole | null>(null);
   const [roleLoading, setRoleLoading] = useState(false);
   /** True when this parent has the placeholder PIN and must complete setup-pin */
   const [needsPinSetup, setNeedsPinSetup] = useState<boolean | null>(null);
@@ -202,10 +205,29 @@ function AuthGuard() {
       if (taResolved === 'ta') return { role: 'ta', needsPinSetup: false };
 
       const profResolved = await detectProfessionalRole(userId, email);
-      return {
-        role: profResolved,
-        needsPinSetup: profResolved === 'parent' ? await checkPinStatus(userId) : false,
-      };
+      if (profResolved === 'professional') return { role: 'professional', needsPinSetup: false };
+
+      // Accepted care-team Viewer/Approver with no children of their own
+      // (invites were auto-accepted by detectTaRole above). Mirrors
+      // deriveRoleFromBoot; emails are stored lower-case since migration 053.
+      if (email) {
+        const [{ count: ownChildren }, { count: careLinks }] = await Promise.all([
+          supabase
+            .from('child_profiles')
+            .select('profile_id', { count: 'exact', head: true })
+            .eq('parent_id', userId),
+          supabase
+            .from('care_team_members')
+            .select('member_id', { count: 'exact', head: true })
+            .eq('email', email.toLowerCase())
+            .in('role', ['view_only', 'approver'])
+            .not('accepted_at', 'is', null),
+        ]);
+        if ((careLinks ?? 0) > 0 && (ownChildren ?? 0) === 0) {
+          return { role: 'carer', needsPinSetup: false };
+        }
+      }
+      return { role: 'parent', needsPinSetup: await checkPinStatus(userId) };
     },
     [detectTaRole, detectProfessionalRole, checkPinStatus],
   );
@@ -316,6 +338,7 @@ function AuthGuard() {
     // Group homes not yet in the typed-routes generated types.
     const professionalHome = '/(professional)/children' as never;
     const adminHome = '/(admin)/dashboard' as never;
+    const carerHome = '/(carer)/home' as never;
     const group0 = segments[0] as string | undefined;
 
     if (inAuthGroup && !onWhitelistedAuthRoute) {
@@ -323,6 +346,7 @@ function AuthGuard() {
       else if (role === 'parent') router.replace('/(parent)/dashboard');
       else if (role === 'ta') router.replace('/(ta)/today');
       else if (role === 'professional') router.replace(professionalHome);
+      else if (role === 'carer') router.replace(carerHome);
       else router.replace('/(child)/select-profile');
       return;
     }
@@ -330,6 +354,7 @@ function AuthGuard() {
     // Cross-role guards: keep each role in its own group.
     const inProfessionalGroup = group0 === '(professional)';
     const inAdminGroup = group0 === '(admin)';
+    const inCarerGroup = group0 === '(carer)';
     if (role === 'child' && inParentGroup) router.replace('/(child)/select-profile');
     if (role === 'ta' && inParentGroup) router.replace('/(ta)/today');
     if (role === 'ta' && group0 === '(child)') router.replace('/(ta)/today');
@@ -341,6 +366,21 @@ function AuthGuard() {
       if (role === 'admin') router.replace(adminHome);
       else if (role === 'parent') router.replace('/(parent)/dashboard');
       else if (role === 'ta') router.replace('/(ta)/today');
+      else if (role === 'carer') router.replace(carerHome);
+      else router.replace('/(child)/select-profile');
+    }
+    // Care-team Viewers/Approvers stay in their own group; everyone else is
+    // kept out of it (they have no PIN, so no parent/child app either).
+    if (
+      role === 'carer' &&
+      (inParentGroup || group0 === '(child)' || group0 === '(ta)' || inAdminGroup)
+    )
+      router.replace(carerHome);
+    if (role !== 'carer' && inCarerGroup) {
+      if (role === 'admin') router.replace(adminHome);
+      else if (role === 'parent') router.replace('/(parent)/dashboard');
+      else if (role === 'ta') router.replace('/(ta)/today');
+      else if (role === 'professional') router.replace(professionalHome);
       else router.replace('/(child)/select-profile');
     }
     // Admins stay in the admin group; everyone else is kept out of it.
@@ -349,7 +389,7 @@ function AuthGuard() {
       (inParentGroup || group0 === '(child)' || group0 === '(ta)' || inProfessionalGroup)
     )
       router.replace(adminHome);
-    if (role !== 'admin' && inAdminGroup) {
+    if (role !== 'admin' && role !== 'carer' && inAdminGroup) {
       if (role === 'parent') router.replace('/(parent)/dashboard');
       else if (role === 'ta') router.replace('/(ta)/today');
       else if (role === 'professional') router.replace(professionalHome);
@@ -464,6 +504,7 @@ function RootLayout() {
             <Stack.Screen name="(child)" />
             <Stack.Screen name="(parent)" />
             <Stack.Screen name="(ta)" />
+            <Stack.Screen name="(carer)" />
             <Stack.Screen name="(professional)" />
             <Stack.Screen name="(admin)" />
             <Stack.Screen name="subscription/success" />

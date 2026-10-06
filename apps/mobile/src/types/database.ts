@@ -842,7 +842,12 @@ export type Database = {
           has_active_consent: boolean;
           needs_pin_setup: boolean;
           is_admin_member: boolean;
+          has_care_assignment: boolean;
         };
+      };
+      review_completion: {
+        Args: { p_completion_id: string; p_approve: boolean; p_gold_star?: boolean };
+        Returns: Json;
       };
       admin_overview_metrics: {
         Args: Record<string, never>;

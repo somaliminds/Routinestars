@@ -84,13 +84,13 @@ const ROLE_META: Record<
   { label: string; sub: string; environment: 'HOME' | 'SCHOOL' | 'RESPITE' }
 > = {
   view_only: {
-    label: 'View only',
-    sub: 'Read schedule + progress',
+    label: 'Viewer',
+    sub: 'Sees routine + progress',
     environment: 'HOME',
   },
   approver: {
-    label: 'Can approve',
-    sub: 'Approve completions',
+    label: 'Approver',
+    sub: 'Also approves finished activities',
     environment: 'HOME',
   },
   school_ta: {
@@ -775,17 +775,7 @@ function AIFeaturesSection({ userId }: { userId: string }) {
 }
 
 // ── Care team section ─────────────────────────────────────────────────────────
-function CareTeamSection({
-  parentId,
-  childId,
-  childName,
-  parentEmail,
-}: {
-  parentId: string;
-  childId: string;
-  childName: string;
-  parentEmail: string;
-}) {
+function CareTeamSection({ parentId, childId }: { parentId: string; childId: string }) {
   const qc = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<InviteRole>('view_only');
@@ -800,32 +790,30 @@ function CareTeamSection({
   const inviteMutation = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: InviteRole }) => {
       const environment = ROLE_META[role].environment;
-      // 1. Create the DB row (environment is derived from role)
-      const { error } = await supabase.from('care_team_members').insert({
-        parent_id: parentId,
-        child_id: childId,
-        email,
-        role,
-        environment,
-      });
-      if (error) throw error;
+      // 1. Create the DB row (environment is derived from role). The email is
+      //    stored lower-case (the DB enforces it too, migration 053): sign-in
+      //    emails are lower-case, so "Grandma@Gmail.com" never used to link.
+      const { data: member, error } = await supabase
+        .from('care_team_members')
+        .insert({
+          parent_id: parentId,
+          child_id: childId,
+          email,
+          role,
+          environment,
+        })
+        .select('member_id')
+        .single();
+      if (error || !member) throw error ?? new Error('Invite not created');
 
-      // 2. Send the branded invitation email via Resend (fire-and-forget —
-      //    DB row still persists if the email send fails, so the parent can
-      //    re-trigger by revoking + re-inviting if needed)
-      try {
-        await supabase.functions.invoke('send-care-invite', {
-          body: {
-            invitee_email: email,
-            parent_name: parentEmail,
-            child_name: childName,
-            role,
-            environment,
-          },
-        });
-      } catch (emailErr) {
-        console.warn('[care-team] invite email send failed:', emailErr);
-      }
+      // 2. Send the branded invitation email (best-effort — the invite still
+      //    works without it: they're linked the first time they sign in with
+      //    this email). The function reads the address, names and role from
+      //    the row itself and checks it is ours.
+      const { error: emailErr } = await supabase.functions.invoke('send-care-invite', {
+        body: { member_id: member.member_id },
+      });
+      if (emailErr) console.warn('[care-team] invite email send failed:', emailErr.message);
     },
     onSuccess: () => {
       setInviteEmail('');
@@ -844,7 +832,10 @@ function CareTeamSection({
   });
 
   const handleInvite = () => {
-    const result = inviteSchema.safeParse({ email: inviteEmail, role: inviteRole });
+    const result = inviteSchema.safeParse({
+      email: inviteEmail.trim().toLowerCase(),
+      role: inviteRole,
+    });
     if (!result.success) {
       setInviteError(result.error.errors[0]?.message ?? 'Invalid');
       return;
@@ -879,7 +870,7 @@ function CareTeamSection({
                 <Text className="font-inter text-neutral-500 text-xs mt-0.5">
                   {ROLE_META[m.role]?.label ?? m.role}
                   {m.environment !== 'HOME' ? ` (${m.environment.toLowerCase()})` : ''} ·{' '}
-                  {m.accepted_at ? 'Active' : 'Pending'}
+                  {m.accepted_at ? 'Active' : 'Invited — joins when they sign in'}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => confirmRevoke(m)} className="px-2 py-1">
@@ -1168,14 +1159,10 @@ export default function SettingsScreen() {
             {canShareCareTeam(subscription) ? (
               <>
                 <Text className="font-inter text-neutral-500 text-xs mb-3 px-1">
-                  Invite teachers or therapists to view progress or approve activities.
+                  Invite grandparents, carers, teachers or therapists. Viewers see the routine and
+                  progress; Approvers can also approve finished activities.
                 </Text>
-                <CareTeamSection
-                  parentId={userId}
-                  childId={activeChild.profile_id}
-                  childName={activeChild.child_name}
-                  parentEmail={session?.user.email ?? 'A RoutineStars parent'}
-                />
+                <CareTeamSection parentId={userId} childId={activeChild.profile_id} />
               </>
             ) : (
               <View className="bg-white rounded-2xl p-4 mb-2 shadow-sm items-center">

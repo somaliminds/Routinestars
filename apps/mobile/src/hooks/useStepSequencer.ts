@@ -328,20 +328,12 @@ export function useStepSequencer(
             .then(({ data }) => {
               // Guard: don't update state if the hook has been unmounted
               if (!mountedRef.current) return;
-              const result = data as {
-                badges_newly_earned?: string[];
-                bonus_stars?: number;
-              } | null;
+              const result = data as { badges_newly_earned?: string[] } | null;
               const badges = result?.badges_newly_earned ?? [];
               if (badges.length > 0) setNewlyEarnedBadges(badges);
-              // Award bonus stars (set complete, on-time, weekend, streaks, perfect day)
-              const extraStars = result?.bonus_stars ?? 0;
-              if (extraStars > 0) {
-                void supabase.rpc('increment_child_stars', {
-                  p_child_id: childId,
-                  p_stars: extraStars,
-                });
-              }
+              // The engine already added its bonus stars (set complete, on-time,
+              // weekend, streaks, perfect day) server-side. Adding `bonus_stars`
+              // again here used to award every bonus twice.
             });
         }
       }

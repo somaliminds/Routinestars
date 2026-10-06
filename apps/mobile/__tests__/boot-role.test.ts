@@ -83,6 +83,43 @@ describe('deriveRoleFromBoot', () => {
     ).toBe('admin');
   });
 
+  it('routes a care-team Viewer/Approver (no own children) to the carer app, no PIN gate', () => {
+    expect(deriveRoleFromBoot(ctx({ has_care_assignment: true, needs_pin_setup: true }))).toEqual({
+      role: 'carer',
+      needsPinSetup: false,
+    });
+  });
+
+  it('a parent who is ALSO a carer for another child stays a parent', () => {
+    expect(deriveRoleFromBoot(ctx({ own_children: 1, has_care_assignment: true })).role).toBe(
+      'parent',
+    );
+  });
+
+  it('school TA and professional both win over a care-team link', () => {
+    expect(
+      deriveRoleFromBoot(ctx({ has_care_assignment: true, has_ta_assignment: true })).role,
+    ).toBe('ta');
+    expect(
+      deriveRoleFromBoot(ctx({ has_care_assignment: true, has_active_consent: true })).role,
+    ).toBe('professional');
+  });
+
+  it('an older boot payload without has_care_assignment never yields carer', () => {
+    const legacy = ctx({});
+    delete legacy.has_care_assignment;
+    expect(deriveRoleFromBoot(legacy).role).toBe('parent');
+  });
+
+  it('admin and child win over a care-team link', () => {
+    expect(deriveRoleFromBoot(ctx({ has_care_assignment: true, is_admin_member: true })).role).toBe(
+      'admin',
+    );
+    expect(deriveRoleFromBoot(ctx({ has_care_assignment: true, role: 'child' })).role).toBe(
+      'child',
+    );
+  });
+
   it('never puts a TA or professional behind the PIN gate', () => {
     expect(
       deriveRoleFromBoot(ctx({ has_ta_assignment: true, needs_pin_setup: true })).needsPinSetup,
